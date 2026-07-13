@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VMC — Vulnerability Management Center</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── Top bar ── -->
+  <header class="topbar">
+    <div class="topbar-logo">VMC</div>
+    <nav class="tab-nav" id="tab-nav">
+      <button class="tab-btn active" data-tab="triage">Triage</button>
+      <button class="tab-btn" data-tab="paths">Attack Paths</button>
+      <button class="tab-btn" data-tab="teams">Teams</button>
+      <button class="tab-btn" data-tab="compliance">Compliance</button>
+    </nav>
+    <div class="topbar-spacer"></div>
+    <button id="run-btn" class="btn-run">Run Analysis</button>
+    <div class="topbar-status" id="run-status">
+      <span class="status-dot"></span>
+      <span id="run-status-text">Not run yet</span>
+    </div>
+  </header>
+
+  <!-- ── Alert banner (only shown when IMMEDIATE findings exist) ── -->
+  <div id="alert-banner" class="alert-banner hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="alert-text"></span>
+    <button id="alert-jump" class="alert-jump">View</button>
+  </div>
+
+  <!-- ── Stat tiles ── -->
+  <section class="stat-strip" id="stat-strip">
+    <div class="stat-tile"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Findings</div></div>
+    <div class="stat-tile stat-immediate"><div class="stat-value" id="stat-immediate">—</div><div class="stat-label">Immediate</div></div>
+    <div class="stat-tile stat-act"><div class="stat-value" id="stat-act">—</div><div class="stat-label">Act</div></div>
+    <div class="stat-tile stat-dora"><div class="stat-value" id="stat-dora">—</div><div class="stat-label">DORA CIF Scope</div></div>
+    <div class="stat-tile"><div class="stat-value" id="stat-dq">—</div><div class="stat-label">Data Quality Issues</div></div>
+  </section>
+
+  <!-- ══════════ TRIAGE TAB ══════════ -->
+  <div class="tab-panel active" data-panel="triage" id="panel-triage">
+    <aside class="left-panel">
+      <section class="query-section">
+        <div class="section-label">Search Findings</div>
+        <input id="search-input" class="cve-input" type="search" placeholder="Title, CVE, hostname…" autocomplete="off" spellcheck="false" />
+      </section>
+
+      <section class="cve-list-section">
+        <div class="section-label">Action Band</div>
+        <div id="band-filters" class="filter-chip-row"></div>
+
+        <div class="section-label" style="margin-top:20px">Responsible Team</div>
+        <select id="team-filter" class="cve-filter-input"><option value="">All teams</option></select>
+
+        <div class="section-label" style="margin-top:20px">Zone</div>
+        <select id="zone-filter" class="cve-filter-input"><option value="">All zones</option></select>
+
+        <div class="section-label" style="margin-top:20px">Compliance Scope</div>
+        <select id="compliance-filter" class="cve-filter-input"><option value="">Any</option><option value="dora">DORA CIF only</option></select>
+      </section>
+
+      <section class="summary-section" id="dq-section">
+        <div class="section-label">Data Quality Issues <span id="dq-count" class="badge badge-info" style="display:none"></span></div>
+        <div id="dq-list" class="italic-hint">No issues.</div>
+      </section>
+    </aside>
+
+    <main class="graph-area triage-area">
+      <div class="table-wrap">
+        <table class="triage-table" id="triage-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th data-sort="score">GRS</th>
+              <th data-sort="band">Band</th>
+              <th data-sort="title">Finding</th>
+              <th data-sort="asset_hostname">Asset</th>
+              <th data-sort="zone">Zone</th>
+              <th data-sort="responsible_team">Team</th>
+              <th data-sort="sla_days">SLA</th>
+            </tr>
+          </thead>
+          <tbody id="triage-tbody">
+            <tr><td colspan="8" class="text-muted-sm" style="padding:20px">Click "Run Analysis" to score and sort every finding.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="empty-msg" class="empty-graph-msg hidden">
+        <div class="empty-icon">⛃</div>
+        <div class="empty-label">No findings match the current filters.</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ══════════ ATTACK PATHS TAB ══════════ -->
+  <div class="tab-panel" data-panel="paths" id="panel-paths">
+    <aside class="left-panel">
+      <section class="query-section">
+        <div class="section-label">Attack Path</div>
+        <div id="path-list" class="path-list"></div>
+      </section>
+    </aside>
+    <main class="graph-area">
+      <div id="path-summary" class="path-summary"></div>
+      <div id="cy" class="cy-container"></div>
+    </main>
+  </div>
+
+  <!-- ══════════ TEAMS TAB ══════════ -->
+  <div class="tab-panel full" data-panel="teams" id="panel-teams">
+    <main class="graph-area teams-area">
+      <div id="teams-grid" class="cards-grid"></div>
+    </main>
+  </div>
+
+  <!-- ══════════ COMPLIANCE TAB ══════════ -->
+  <div class="tab-panel full" data-panel="compliance" id="panel-compliance">
+    <main class="graph-area compliance-area">
+      <div id="compliance-grid" class="cards-grid"></div>
+    </main>
+  </div>
+
+  <!-- ── Bottom bar / legend ── -->
+  <footer class="bottombar">
+    <span class="legend-title">Action band (GRS):</span>
+    <div id="legend">
+      <span class="legend-item"><span class="legend-dot band-dot-IMMEDIATE"></span>Immediate (80–100)</span>
+      <span class="legend-item"><span class="legend-dot band-dot-ACT"></span>Act (60–79)</span>
+      <span class="legend-item"><span class="legend-dot band-dot-ATTEND"></span>Attend (40–59)</span>
+      <span class="legend-item"><span class="legend-dot band-dot-TRACK-STAR"></span>Track* (20–39)</span>
+      <span class="legend-item"><span class="legend-dot band-dot-TRACK"></span>Track (0–19)</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span class="legend-title text-muted-sm">Ghrab Risk Score — see ghrab_risk_methodology.md</span>
+  </footer>
+
+</div>
+
+<!-- ── Row detail drawer ── -->
+<div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+<aside id="drawer" class="drawer hidden">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-title">Finding</div>
+    <button id="drawer-close" class="drawer-close">✕</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<!-- ── Notify-team brief modal ── -->
+<div id="brief-backdrop" class="drawer-backdrop hidden"></div>
+<aside id="brief-modal" class="drawer hidden">
+  <div class="drawer-header">
+    <div class="drawer-title" id="brief-title">Team Brief</div>
+    <button id="brief-close" class="drawer-close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="italic-hint" style="margin-bottom:10px">No chat/email integration is wired up — copy this brief into Slack, Teams, or a ticket.</div>
+    <textarea id="brief-text" class="brief-textarea" readonly></textarea>
+    <button id="brief-copy" class="btn-run" style="margin-top:12px; width:100%">Copy to Clipboard</button>
+  </div>
+</aside>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

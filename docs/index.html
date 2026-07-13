@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VOCI — Kill Chain Intelligence</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── Top bar ── -->
+  <header class="topbar">
+    <div class="topbar-logo">VOCI</div>
+    <span class="topbar-subtitle">Vulnerability Operations Center Intelligence · Kill Chain Analysis</span>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-status">
+      <span class="status-dot"></span>
+      Multi-Agent System Operational
+    </div>
+  </header>
+
+  <!-- ── Left panel ── -->
+  <aside class="left-panel">
+
+    <!-- Query -->
+    <section class="query-section">
+      <div class="section-label">Analyse CVE</div>
+      <form id="query-form" class="query-input-wrap">
+        <input
+          id="cve-input"
+          class="cve-input"
+          type="text"
+          placeholder="CVE-2024-21413"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="submit" class="btn-analyze">Analyse</button>
+      </form>
+      <div class="upload-row">
+        <label class="upload-label" for="csv-upload">
+          ↑ Upload CSV
+        </label>
+        <input id="csv-upload" type="file" accept=".csv" />
+      </div>
+    </section>
+
+    <!-- CVE list -->
+    <section class="cve-list-section">
+      <div class="cve-list-header">
+        <div class="section-label">CVEs in Dataset</div>
+        <div class="filter-row">
+          <input
+            id="cve-filter"
+            class="cve-filter-input"
+            type="search"
+            placeholder="Filter CVEs"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <span class="filter-hint">Search by ID, severity, or discovery count.</span>
+        </div>
+      </div>
+      <div id="cve-list">
+        <div class="text-muted-sm" style="margin-top:8px">
+          Loading CVE index…
+        </div>
+      </div>
+    </section>
+
+    <!-- Attack summary -->
+    <section class="summary-section">
+      <div class="section-label">
+        Attack Summary
+        &nbsp;
+        <span id="threat-level" class="badge" style="display:none"></span>
+      </div>
+      <p id="attack-summary" class="italic-hint">
+        Select a CVE to generate its kill chain.
+      </p>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-section">
+      <div class="section-label">Kill Chain Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-nodes">—</div>
+          <div class="stat-label">Nodes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-edges">—</div>
+          <div class="stat-label">Edges</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-stages">—</div>
+          <div class="stat-label">Stages</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-techniques">—</div>
+          <div class="stat-label">Techniques</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-assets">—</div>
+          <div class="stat-label">Assets</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-branches">—</div>
+          <div class="stat-label">Branches</div>
+        </div>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- ── Graph area ── -->
+  <main class="graph-area">
+
+    <!-- Graph canvas -->
+    <div id="cy"></div>
+
+    <!-- Empty state -->
+    <div id="empty-msg" class="empty-graph-msg">
+      <div class="empty-icon">⛓</div>
+      <div class="empty-label">Enter a CVE ID and click Analyse<br/>to generate its kill chain graph.</div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="hidden">
+      <div class="loader-ring"></div>
+      <div class="loading-message">Initialising agents…</div>
+      <div class="loading-stages">
+        DataAgent → CVEIntelAgent → KillChainAgent → RiskAgent → GraphAgent
+      </div>
+    </div>
+
+    <!-- Graph controls -->
+    <div class="graph-controls">
+      <button id="fit-btn"    class="graph-btn">⊕ Fit</button>
+      <button id="export-btn" class="graph-btn">↓ PNG</button>
+    </div>
+
+    <!-- Notifications -->
+    <div id="error-banner"   class="notif hidden"></div>
+    <div id="success-banner" class="notif hidden"></div>
+
+  </main>
+
+  <!-- ── Right panel ── -->
+  <aside class="right-panel">
+
+    <!-- Node detail (hidden until a node is clicked) -->
+    <section id="node-detail-panel" class="detail-panel hidden">
+      <div class="detail-header">
+        <div class="detail-title" id="node-label">Node</div>
+        <button id="close-node-detail" class="close-btn">✕</button>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Stage</div>
+        <div class="detail-row-value" id="node-stage"></div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Severity &amp; Role</div>
+        <div class="badge-row">
+          <span id="node-severity" class="badge"></span>
+          <span id="node-roles"></span>
+        </div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">MITRE Technique</div>
+        <div class="detail-row-value">
+          <span id="node-technique-id"></span>
+          &nbsp;·&nbsp;
+          <span id="node-technique-name" class="text-muted"></span>
+        </div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Description</div>
+        <div class="detail-description" id="node-description"></div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Attacker Tools</div>
+        <div class="tags-row" id="node-tools"></div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label"> Detection Indicators</div>
+        <ul class="ioc-list" id="node-indicators"></ul>
+      </div>
+
+      <a id="mitre-link" class="mitre-link hidden" href="#" target="_blank" rel="noopener">
+        View on MITRE ATT&amp;CK ↗
+      </a>
+    </section>
+
+    <!-- Risk assessment -->
+    <section class="info-section">
+      <div class="section-label">Risk Score</div>
+      <div id="risk-score" class="risk-score-display">—</div>
+      <div class="detail-row-spaced">
+        <div class="detail-row-label">Remediation Urgency</div>
+        <div id="remediation-urgency" class="risk-urgency-value">—</div>
+      </div>
+      <div class="detail-row-spaced">
+        <div class="detail-row-label">Blast Radius</div>
+        <div id="blast-radius" class="risk-meta-value">—</div>
+      </div>
+      <div class="detail-row-spaced">
+        <div class="detail-row-label">Exploitability</div>
+        <div id="exploitability" class="risk-meta-value">—</div>
+      </div>
+      <div class="detail-row-spaced">
+        <div class="detail-row-label">Recommended Actions</div>
+        <ul class="actions-list" id="recommended-actions">
+          <li class="text-muted">Awaiting analysis…</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- CVE Intelligence -->
+    <section class="info-section">
+      <div class="section-label">CVE Intelligence</div>
+
+      <div class="detail-row detail-row-spaced">
+        <div class="detail-row-label">Vulnerability Type</div>
+        <div id="intel-type" class="detail-row-value">—</div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Attack Vector</div>
+        <div id="intel-vector" class="detail-row-value">—</div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Exploitation Complexity</div>
+        <div id="intel-complexity" class="detail-row-value">—</div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Technical Analysis</div>
+        <div id="intel-analysis" class="detail-description">—</div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Known Exploits / PoCs</div>
+        <div class="tags-row" id="intel-exploits"></div>
+      </div>
+
+      <div class="detail-row">
+        <div class="detail-row-label">Affected Platforms</div>
+        <div class="tags-row" id="intel-platforms"></div>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- ── Bottom bar / legend ── -->
+  <footer class="bottombar">
+    <span class="legend-title">Stages:</span>
+    <div id="legend">
+      <span class="legend-item text-muted">
+        Run an analysis to see the stage legend.
+      </span>
+    </div>
+  </footer>
+
+</div><!-- /.shell -->
+
+<!-- ── Dependencies ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+<script>
+  // Register the dagre layout plugin
+  if (typeof cytoscape !== 'undefined' && typeof cytoscapeDagre !== 'undefined') {
+    cytoscape.use(cytoscapeDagre);
+  }
+</script>
+<script src="/static/killchain.js"></script>
+
+</body>
+</html>

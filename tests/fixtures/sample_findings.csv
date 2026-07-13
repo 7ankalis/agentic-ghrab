@@ -1,0 +1,8 @@
+Finding_ID,CVE_ID,Category,Title,Severity,CVSS_Score,IP_Address,Hostname,VLAN_ID,Zone,Port,Description,Consequence,Remediation,Patch_Available,Responsible_Team,Attack_Path_Ref,Compliance_Ref,Status
+F-001,CVE-2020-1472,Missing Patch,Zerologon,Critical,10.0,10.10.10.5,DC01,10,Corporate LAN,445,Netlogon elevation of privilege,Domain compromise,Apply MS20-Aug patch,true,Identity & Access,PATH-E-Step1,PCI DSS 6.2,Open
+F-002,,Misconfiguration,Flat trust VLAN 10<->40,High,,10.10.10.1,FW01,10,Corporate LAN,,Firewall allows any-any between VLAN10 and VLAN40,Lateral movement into Finance zone,Restrict ACL to required ports only,,Network,PATH-E-Step2,PCI DSS 1.3;SWIFT CSP 2.1,Open
+F-003,CVE-2019-0708,Missing Patch,BlueKeep,Critical,9.8,10.40.10.20,TRADE-CORE01,40,Finance/Trading,3389,RDP RCE,Remote code execution,Patch and disable RDP,false,IT Infrastructure,,PCI DSS 6.2,Open
+F-004,,Excessive Access,Overly broad S3 bucket policy,Medium,,203.0.113.9,ghrab-finance-rds,,Unknown,,Bucket policy allows wildcard principal,Data exposure,Restrict bucket policy to named roles,,Cloud,,SWIFT CSP 4.2,Open
+F-005,,Compliance Gap,Missing MFA on VPN,Low,,198.51.100.4,VPN-GW01,70,Guest WiFi,,No MFA enforced on remote access VPN,Credential-based access,Enforce MFA,,Network,,,Open
+F-006,CVE-2021-44228,Missing Patch,Log4Shell,Critical,10.0,10.10.10.5,DC01,10,Corporate LAN,8080,Remote code execution via JNDI lookup,Full system compromise,Upgrade log4j to 2.17+,true,AppSec,PATH-E-Step3,PCI DSS 6.2,Open
+F-007,,Misconfiguration,,High,,10.10.10.9,WKS-HR02,10,Corporate LAN,,,,,,HR IT,,,Open

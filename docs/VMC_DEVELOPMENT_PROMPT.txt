@@ -1,0 +1,237 @@
+================================================================================
+VMC — VULNERABILITY MANAGEMENT CENTER — DEVELOPMENT KICKOFF PROMPT
+================================================================================
+Paste this whole file to Claude Code / a Claude agent with repo access to
+start building. Attach VMC_ARCHITECTURE_OVERVIEW.md alongside it — that
+document is the authoritative design reference; this prompt is the build plan.
+
+**WHAT WE'RE BUILDING:**
+
+VMC (Vulnerability Management Center) is a multi-agent, provider-independent,
+AI-agentic exposure-management platform, in the spirit of Tenable's Hexa AI.
+It ingests a raw vulnerability-scanner CSV (Qualys/Nessus/Rapid7/generic —
+CVEs, misconfigurations, excessive-access findings, cloud misconfigs, all
+mixed together, tagged per owning team), plus a network architecture
+description (markdown + optional diagram image), and produces:
+
+1. A fully normalized, deduplicated findings dataset with asset/team/VLAN
+   context attached
+2. Live threat-intelligence enrichment per CVE (CISA KEV, EPSS, NVD)
+3. Reconstructed multi-step attack paths across the whole finding set
+4. An EXPLAINABLE, deterministic 0-100 risk/criticality score per finding
+   (not a black-box LLM number) with a human-readable AI justification
+5. Compliance mapping (PCI DSS / SWIFT CSP / ISO 27001 / NIST / CIS)
+6. Per-team, sequenced, effort-estimated remediation playbooks
+7. SLA burndown & predictive risk-trend forecasting
+8. A real-time triage dashboard: sortable/filterable risk board, attack-path
+   visualization, team kanban boards, compliance reports
+
+**THE ONE NON-NEGOTIABLE ARCHITECTURAL RULE:**
+
+The final risk score must be reproducible by hand from stored inputs without
+calling any LLM. AI agents enrich, correlate, and explain. A deterministic,
+versioned scoring formula (see Agent 5 in the architecture doc) computes the
+number. Never let an agent free-write a risk score into the risk register.
+
+---
+
+**9-AGENT ARCHITECTURE (full detail in VMC_ARCHITECTURE_OVERVIEW.md):**
+
+Agent 1: Ingestion & Normalization (Non-AI)
+  Multi-scanner CSV auto-detect + normalize, parse architecture.md into a
+  typed network graph, map every finding to an Asset (VLAN/zone/team/tier).
+
+Agent 2: Network Topology & Segmentation Analysis (Non-AI + optional vision)
+  Segmentation health scoring (Green/Yellow/Red); optional vision-model
+  cross-check of the architecture PNG against the markdown-derived graph,
+  flags any discrepancy.
+
+Agent 3: Threat Intelligence Enrichment (AI + tool-calling)
+  Per distinct CVE (deduped): CISA KEV lookup, EPSS score, NVD canonical
+  CVSS, optional web-search for very recent CVEs. Cached aggressively
+  (Redis, cross-tenant, 24h TTL). Use a fast/cheap model here (routed via
+  the ModelRouter) — this is the highest-volume agent.
+
+Agent 4: Attack Path Discovery & Correlation (AI, temp≈0.4)
+  Correlates all findings + topology into realistic multi-step attack
+  chains; identifies choke points (fixes that collapse multiple paths).
+
+Agent 5: Risk & Criticality Scoring Engine (hybrid: deterministic + AI)
+  Deterministic weighted formula (CVSS + EPSS + KEV + asset criticality +
+  attack-path multiplier + compliance-scope boost + exposure boost -
+  compensating controls) → score 0-100 + band. AI generates a separate
+  plain-English justification field. Weights are a versioned, tenant-
+  configurable policy, not hardcoded constants.
+
+Agent 6: Compliance & Governance Mapping (Non-AI, template-driven)
+  Maps findings to PCI DSS/SWIFT CSP/ISO 27001/NIST/CIS controls.
+
+Agent 7: Remediation Orchestration & Routing (AI, temp≈0.2)
+  Per-team prioritized, sequenced, budgeted playbooks; dependency-aware
+  ordering driven by Agent 4's choke points and Agent 5's scores.
+
+Agent 8: SLA & Predictive Analytics (Non-AI)
+  Team velocity, burndown projections, time-to-compliance, residual-risk
+  estimation. Pure math — no LLM.
+
+Agent 9: Reporting & Dashboard Data Assembly (Non-AI)
+  Assembles the DashboardBundle: triage board rows, Cytoscape-ready attack
+  path graphs, team boards, Jinja2-rendered compliance reports, risk heatmap.
+
+---
+
+**PROVIDER-INDEPENDENT AI LAYER (build this FIRST, before any agent logic):**
+
+1. `LLMProvider` protocol with `generate_json()` and `generate_with_vision()`
+2. Concrete adapters: GeminiProvider, GroqProvider, OpenAIProvider,
+   AnthropicProvider, OllamaProvider — each normalizes structured JSON
+   output and tool-calling into a shared internal format, and normalizes
+   errors into a shared `ProviderError` taxonomy (rate_limit / auth /
+   context_too_long / invalid_response)
+3. `ModelRouter` — YAML/DB-backed policy mapping agent_name -> {provider,
+   model, temperature}, plus a `fallback_chain` for resilience and for
+   offline/air-gapped mode (Ollama as last resort)
+4. Shared retry contract: schema-validation repair retry (1x) -> provider
+   error back-off (1s/2s/4s) -> fallback_chain -> required-agent abort /
+   optional-agent graceful degrade
+5. `ToolSpec` abstraction so Agent 3's tools (fetch_kev, fetch_epss,
+   fetch_nvd, web_search) are written once as plain async functions and
+   work under any provider's function-calling format
+
+Do not hardcode a single vendor's SDK into any agent. Every agent talks only
+to the `LLMProvider` protocol.
+
+---
+
+**DATA MODEL (Shared ExposureContext, Pydantic):**
+
+class ExposureContext:
+    run_id, tenant_id
+    findings: list[Finding]
+    assets: dict[str, Asset]
+    teams: dict[str, TeamInfo]
+    data_quality_issues: list[DataQualityIssue]
+    topology: NetworkGraph
+    segmentation_findings: list[SegmentationFinding]
+    diagram_vs_markdown_conflicts: list[str]
+    enrichment: dict[str, ThreatIntel]              # keyed by cve_id, deduped
+    attack_paths: dict[str, AttackPath]
+    choke_points: list[ChokePoint]
+    risk_register: dict[str, RiskAssessment]        # keyed by finding_id
+    compliance_register: dict[str, ComplianceFinding]
+    remediation_plans: dict[str, RemediationPlan]
+    sla_dashboard: dict[str, SLAStatus]
+    risk_trend_forecast: RiskForecast
+    dashboard_bundle: DashboardBundle
+    agent_logs, errors, timing_ms
+
+Full field-level definitions of Finding / Asset / ThreatIntel / RiskAssessment
+are in VMC_ARCHITECTURE_OVERVIEW.md §6 — use those exactly, they were
+designed against the real sample dataset's column structure.
+
+---
+
+**EXAMPLE WORKFLOW (Ghrab Financial test dataset — use as ground truth):**
+
+INPUT:
+├─ ghrab_vulnerabilities.csv (33 rows: CVEs, misconfigs, excessive access,
+│                              cloud misconfig, compliance-gap rows, each
+│                              tagged with Responsible_Team and
+│                              Attack_Path_Ref like PATH-E-Step2)
+├─ ghrab_architecture.md (VLANs, zones, teams, compliance scope)
+└─ ghrab-architecture.png (network diagram — use for Agent 2's vision
+                            cross-check)
+
+Run Agent 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 against this dataset as
+the integration test. Expected shape of results (not exact numbers — the
+formula/weights will produce whatever they produce, but the RANKING should
+make sense):
+- Zerologon (CVE-2020-1472) and Log4Shell (CVE-2021-44228) should land in
+  the Critical band — both are in CISA KEV, both CVSS 10.0
+- The VLAN 10<->40 flat-trust misconfiguration (QID 200512) should score
+  very high despite having no CVE, because it's a choke point appearing in
+  Path E and sits in PCI/SWIFT compliance scope
+- Standalone/Path-A findings (guest WiFi VLAN hop) should generally rank
+  below anything touching VLAN 40 (Finance/Trading/SWIFT scope), all else
+  equal
+- The triage board, grouped by Responsible_Team, should roughly reproduce
+  the team breakdown already sketched in VOC_PLATFORM_VISION.md's example
+  workflow (IT Infrastructure, Network, AppSec, DBA, Cloud, Compliance-GRC)
+
+If the scoring engine produces a ranking that contradicts these sanity
+checks, treat it as a bug in the weight policy, not as "the LLM disagreed."
+
+---
+
+**TECHNICAL NOTES:**
+
+• Async-first (FastAPI + asyncio); Celery or RQ + Redis for the actual
+  agent-DAG execution so long runs don't block the HTTP layer
+• DAG orchestration, not a fixed linear pipeline — Agents 1&2 run in
+  parallel; consider LangGraph for the conditional/optional-agent edges
+  (Agent 2's vision check and Agent 3's web-search tool are both optional
+  and must degrade gracefully, not abort the run)
+• PostgreSQL for ExposureContext snapshots after every stage (resumable
+  runs, audit trail, compliance-grade persistence) + SQLAlchemy
+• Redis for: threat-intel cache (cross-tenant, CVE-keyed, 24h TTL), job
+  queue, live run-state for WebSocket progress updates
+• WebSockets for real-time dashboard progress + SLA burndown updates
+• Cytoscape.js for attack-path visualization — reuse VOCI's GraphAgent
+  styling approach (STAGE_PALETTE-style color/shape rules) rather than
+  reinventing it
+• Jinja2 templates for compliance report generation (Markdown/PDF)
+• Offline mode: OllamaProvider as last entry in every fallback_chain;
+  Agent 3's external API calls degrade to "CVSS-only, no live threat
+  intel" rather than hard-failing when offline
+• Free/no-auth-required external sources to wire up for Agent 3: CISA KEV
+  JSON feed, FIRST.org EPSS API, NVD API (rate-limited but free)
+
+---
+
+**PHASE 1 (Weeks 1–3): Foundation**
+- Provider-agnostic LLMProvider layer + ModelRouter + at least 2 concrete
+  adapters (e.g. Gemini + Groq) working end-to-end
+- Agents 1 & 2 operational against the Ghrab test dataset
+- ExposureContext persistence + resumable runs
+- Deliverable: CLI or minimal API that ingests the CSV+MD and prints a
+  normalized findings table with asset/team context attached
+
+**PHASE 2 (Weeks 4–6): Intelligence**
+- Agent 3 (threat intel enrichment, with caching) operational
+- Agent 4 (attack path discovery) operational
+- Agent 5 (the scoring engine) operational — get the deterministic formula
+  right and unit-tested BEFORE wiring the AI explanation sub-step
+- Deliverable: a working triage board (can be a simple table UI at this
+  stage) sorted by risk score with visible score breakdowns
+
+**PHASE 3 (Weeks 7–9): Operations**
+- Agents 6, 7, 8, 9 operational
+- Compliance reports auto-generated
+- Team remediation boards live
+- Real-time dashboard (React + Cytoscape.js + WebSockets) complete
+- Deliverable: full VMC platform, demoable end-to-end on the Ghrab dataset,
+  and re-runnable on any other well-formed scanner CSV
+
+---
+
+**START HERE:**
+
+1. Read VMC_ARCHITECTURE_OVERVIEW.md in full — it has the reasoning behind
+   every design decision, not just the shapes
+2. Set up the repo skeleton: `providers/`, `agents/`, `orchestrator/`,
+   `models.py` (all Pydantic types), `api/`, `frontend/`
+3. Build `LLMProvider` protocol + one adapter (start with whichever
+   provider you have an API key for) + `ModelRouter` with a YAML policy file
+4. Build Agent 1 against `ghrab_vulnerabilities.csv` + `ghrab_architecture.md`
+   — get normalized `Finding`/`Asset` objects flowing before touching any AI
+   agent
+5. Build the deterministic core of Agent 5 (the scoring formula) as a
+   standalone, unit-testable module — this is the piece everything else
+   trusts, get it right in isolation with fake inputs before agents 3/4
+   feed it real ones
+6. Wire agents 2–4 in, then 6–9, then the dashboard
+7. Add a second LLMProvider adapter once the first agent works end-to-end,
+   to prove the provider-independence claim before building all 9 agents
+   around a single vendor by accident
+
+---

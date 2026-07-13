@@ -1,0 +1,35 @@
+# ModelRouter policy — per-agent, per-tenant model selection.
+# Swapping a provider for one agent is a config change here, not a code
+# change (VMC_ARCHITECTURE_OVERVIEW.md §3.2). Values below are Phase 1/2
+# defaults for the agents that call an LLM; non-AI agents (1, 2's core path,
+# 6, 8, 9) don't need an entry.
+
+agents:
+  threat_intel_enrichment: # Agent 3
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.1
+
+  attack_path_discovery: # Agent 4
+    provider: gemini
+    model: gemini-2.5-pro
+    temperature: 0.4
+
+  risk_explanation: # Agent 5's AI sub-step (explanation only, never the score)
+    provider: groq
+    model: llama-3.3-70b-versatile
+    temperature: 0.2
+
+  remediation_orchestration: # Agent 7
+    provider: anthropic
+    model: claude-sonnet-4-6
+    temperature: 0.2
+
+  vision_topology_check: # Agent 2's optional vision sub-step
+    provider: gemini
+    model: gemini-2.5-pro
+    temperature: 0.1
+
+# Order tried after an agent's primary provider is exhausted. Ollama last so
+# offline/air-gapped deployments always have a local fallback.
+fallback_chain: [gemini, anthropic, groq, ollama]
