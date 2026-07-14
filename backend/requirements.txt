@@ -1,0 +1,7 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pandas>=2.2
+networkx>=3.3
+litellm>=1.51
+python-dotenv>=1.0

@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - .env
+    environment:
+      VOC_CORS_ORIGINS: "http://localhost:8080"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data/cache:/app/data/cache
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"

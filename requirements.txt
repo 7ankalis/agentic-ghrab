@@ -1,0 +1,6 @@
+streamlit>=1.38
+pandas>=2.2
+plotly>=5.24
+networkx>=3.3
+litellm>=1.51
+python-dotenv>=1.0

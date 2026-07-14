@@ -1,0 +1,82 @@
+import type {
+  AttackPathsResponse, Compliance, Correlation, FindingDetail, GraphPayload,
+  Kpis, Overview, ProvidersResponse, Remediation, TeamStat,
+} from "./types";
+import type { Finding } from "./types";
+
+const BASE = "/api";
+
+async function get<T>(path: string): Promise<T> {
+  const r = await fetch(`${BASE}${path}`);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${path}`);
+  return r.json() as Promise<T>;
+}
+
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${path}`);
+  return r.json() as Promise<T>;
+}
+
+export const api = {
+  overview: () => get<Overview>("/overview"),
+  kpis: () => get<Kpis>("/kpis"),
+  findings: () => get<{ findings: Finding[]; total: number }>("/findings"),
+  finding: (qid: number) => get<FindingDetail>(`/findings/${qid}`),
+  remediation: (qid: number) => post<Remediation>(`/findings/${qid}/remediation`),
+  attackPaths: () => get<AttackPathsResponse>("/attack-paths"),
+  graph: () => get<GraphPayload>("/graph"),
+  correlation: () => get<{ correlation: Correlation; ai_enabled: boolean }>("/correlation"),
+  compliance: () => get<{ compliance: Compliance; ai_enabled: boolean }>("/compliance"),
+  teams: () => get<{ teams: TeamStat[] }>("/teams"),
+  providers: () => get<ProvidersResponse>("/settings/providers"),
+  setProvider: (provider: string, api_key: string) =>
+    post<{ ok: boolean }>("/settings/providers", { provider, api_key }),
+  setAgent: (role: string, provider: string) =>
+    post<{ ok: boolean }>("/settings/agent", { role, provider }),
+};
+
+/** Stream Server-Sent Events; calls onEvent(event, data) per frame. */
+export async function streamSSE(
+  path: string,
+  body: unknown,
+  onEvent: (event: string, data: any) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!r.body) throw new Error("No stream body");
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const frames = buf.split("\n\n");
+    buf = frames.pop() ?? "";
+    for (const frame of frames) {
+      let event = "message";
+      let data = "";
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) data += line.slice(5).trim();
+      }
+      if (data) {
+        try {
+          onEvent(event, JSON.parse(data));
+        } catch {
+          onEvent(event, data);
+        }
+      }
+    }
+  }
+}

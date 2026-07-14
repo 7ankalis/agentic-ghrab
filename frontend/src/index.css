@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-base text-ink font-sans antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 88% -10%, rgba(85, 161, 133, 0.1), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(11, 90, 72, 0.12), transparent 55%);
+    background-attachment: fixed;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(140, 175, 160, 0.25) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(140, 175, 160, 0.22);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface/80 shadow-card backdrop-blur-sm;
+  }
+  .card-2 {
+    @apply rounded-xl border border-line bg-surface-2/80;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-sage text-forest hover:bg-sage-bright hover:shadow-glow;
+  }
+  .btn-ghost {
+    @apply btn border border-line text-ink-muted hover:border-line-strong hover:text-ink;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink
+      placeholder:text-ink-faint focus:border-sage/50 focus:outline-none focus:ring-1 focus:ring-sage/30;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint;
+  }
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-surface-2;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(140, 175, 160, 0.08), transparent);
+    animation: shimmer 1.4s infinite;
+    transform: translateX(-100%);
+  }
+}
+
+/* react-flow overrides to match the dark chrome */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__edge-path {
+  stroke-width: 1.5;
+}
+.react-flow__controls {
+  @apply overflow-hidden rounded-lg border border-line bg-surface-2 shadow-card;
+}
+.react-flow__controls-button {
+  @apply border-line bg-surface-2 text-ink-muted hover:bg-surface-3;
+  fill: currentColor;
+}
