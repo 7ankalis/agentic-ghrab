@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import queue
 import threading
 
@@ -11,16 +10,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agents.triage_agent import answer_question
+from api.sse import SSE_HEADERS, sse as _sse
 from api.state import get_analysis, invalidate, runtime_settings
 
 router = APIRouter(prefix="/api")
-
-SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
-               "X-Accel-Buffering": "no"}
-
-
-def _sse(event: str, data) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 class AnalyzeBody(BaseModel):

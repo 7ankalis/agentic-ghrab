@@ -37,7 +37,8 @@ def answer_question(question: str, df: pd.DataFrame, cmdb: CMDB,
         "what's missing rather than guessing."
     )
     try:
-        return ask("triage", task, context, session_state=session_state, max_tokens=1200)
+        return ask("triage", task, context, session_state=session_state, max_tokens=1200,
+                   detail=f"chat: {question[:60]}")
     except Exception as exc:  # noqa: BLE001
         return f"AI Analyst unavailable: {exc}"
 
@@ -51,6 +52,7 @@ def executive_synthesis(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> str
         "recurring class of misconfiguration). Direct, no filler, no headers."
     )
     try:
-        return ask("triage", task, context, session_state=session_state, max_tokens=500)
+        return ask("triage", task, context, session_state=session_state, max_tokens=500,
+                   detail="executive synthesis")
     except Exception as exc:  # noqa: BLE001
         return f"AI executive synthesis unavailable ({exc}). Add an API key in Settings to enable it."

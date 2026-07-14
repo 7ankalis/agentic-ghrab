@@ -12,6 +12,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.logs import router as logs_router
 from api.routes import router as rest_router
 from api.streams import router as stream_router
 
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(rest_router)
 app.include_router(stream_router)
+app.include_router(logs_router)
 
 
 @app.get("/api/health")

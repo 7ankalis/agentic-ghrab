@@ -33,6 +33,7 @@ def find_toxic_combinations(df: pd.DataFrame, cmdb: CMDB, session_state=None) ->
         "'reprioritization_flags' (list of {qid, hostname, reason})."
     )
     try:
-        return ask_json("correlation", task, context, session_state=session_state, max_tokens=1800)
+        return ask_json("correlation", task, context, session_state=session_state, max_tokens=1800,
+                        detail="cross-reference findings, assets & teams")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}

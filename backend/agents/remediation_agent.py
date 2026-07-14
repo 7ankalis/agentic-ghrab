@@ -37,6 +37,7 @@ def enrich_remediation(finding_row: pd.Series, cmdb: CMDB, session_state=None) -
         "'estimated_effort' (one of: 'Low (<1 day)', 'Medium (1-3 days)', 'High (>3 days, change-managed)')."
     )
     try:
-        return ask_json("remediation", task, context, session_state=session_state, max_tokens=1600)
+        return ask_json("remediation", task, context, session_state=session_state, max_tokens=1600,
+                        detail=f"remediation QID {finding_row['QID']}")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}

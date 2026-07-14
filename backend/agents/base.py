@@ -18,18 +18,20 @@ ANALYST_PERSONA = (
 
 
 def ask(role: str, task_prompt: str, context: str, session_state=None,
-        max_tokens: int = 1200) -> str:
+        max_tokens: int = 1200, detail: str = "") -> str:
     system = ANALYST_PERSONA
     user = f"CONTEXT:\n{context}\n\nTASK:\n{task_prompt}"
-    result = call_llm(role, system, user, session_state=session_state, max_tokens=max_tokens)
+    result = call_llm(role, system, user, session_state=session_state,
+                      max_tokens=max_tokens, detail=detail)
     return result.text.strip()
 
 
 def ask_json(role: str, task_prompt: str, context: str, session_state=None,
-             max_tokens: int = 1500) -> dict:
+             max_tokens: int = 1500, detail: str = "") -> dict:
     system = ANALYST_PERSONA + (
         "\n\nYou must respond with ONLY a single valid JSON object — no prose, "
         "no markdown fences, no commentary before or after."
     )
     user = f"CONTEXT:\n{context}\n\nTASK:\n{task_prompt}"
-    return call_llm_json(role, system, user, session_state=session_state, max_tokens=max_tokens)
+    return call_llm_json(role, system, user, session_state=session_state,
+                         max_tokens=max_tokens, detail=detail)

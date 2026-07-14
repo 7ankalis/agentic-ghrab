@@ -71,7 +71,8 @@ def analyze(paths: list[DiscoveredPath], df: pd.DataFrame, cmdb: CMDB,
     out: dict = {"paths": {}, "toxic_combinations": [], "summary": ""}
     try:
         narr = ask_json("attack_path", narrate_task, context,
-                        session_state=session_state, max_tokens=2600)
+                        session_state=session_state, max_tokens=2600,
+                        detail=f"narrate {len(paths)} candidate chains")
         for item in narr.get("paths", []):
             pid = item.get("path_id")
             if pid:
@@ -80,7 +81,8 @@ def analyze(paths: list[DiscoveredPath], df: pd.DataFrame, cmdb: CMDB,
         out["paths_error"] = str(exc)
     try:
         combos = ask_json("correlation", combos_task, context,
-                          session_state=session_state, max_tokens=1600)
+                          session_state=session_state, max_tokens=1600,
+                          detail="cross-path toxic combinations")
         out["toxic_combinations"] = combos.get("toxic_combinations", [])
         out["summary"] = combos.get("summary", "")
     except Exception as exc:  # noqa: BLE001

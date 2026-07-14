@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 
+from core import call_log
 from core.config import (
     AGENT_ROLES,
     DEFAULT_AGENT_PROVIDER,
@@ -55,8 +57,13 @@ def call_llm(
     json_mode: bool = False,
     max_tokens: int = 2000,
     temperature: float = 0.2,
+    detail: str = "",
 ) -> LLMResult:
-    """Call the LLM assigned to `role`, trying providers in preference/fallback order."""
+    """Call the LLM assigned to `role`, trying providers in preference/fallback order.
+
+    Every attempt — including ones that fail and fall through — is recorded in
+    core.call_log so the Agent Activity panel can show, live, which agent is
+    calling which provider and why a fallback happened."""
     import litellm  # imported lazily so the app can run with litellm absent until needed
 
     litellm.suppress_debug_info = True
@@ -71,6 +78,9 @@ def call_llm(
         model_override = (session_state.get(f"agent_model_{role}") if session_state else None)
         model_id = model_override or spec.default_model
         litellm_model = f"{spec.litellm_prefix}/{model_id}" if spec.litellm_prefix else model_id
+
+        call_id = call_log.start(role, provider_key, model_id, detail)
+        t0 = time.monotonic()
         try:
             kwargs = dict(
                 model=litellm_model,
@@ -86,9 +96,14 @@ def call_llm(
                 kwargs["response_format"] = {"type": "json_object"}
             resp = litellm.completion(**kwargs)
             text = resp["choices"][0]["message"]["content"]
+            tokens = _extract_tokens(resp)
+            call_log.finish(call_id, role, provider_key, model_id, True,
+                            (time.monotonic() - t0) * 1000, tokens=tokens, detail=detail)
             return LLMResult(text=text, provider=provider_key, model=model_id)
         except Exception as exc:  # noqa: BLE001 - deliberately broad, we fall back
             logger.warning("Provider %s failed for role %s: %s", provider_key, role, exc)
+            call_log.finish(call_id, role, provider_key, model_id, False,
+                            (time.monotonic() - t0) * 1000, error=str(exc)[:300], detail=detail)
             last_err = exc
             continue
 
@@ -98,10 +113,20 @@ def call_llm(
     )
 
 
+def _extract_tokens(resp) -> int | None:
+    try:
+        usage = resp["usage"]
+        if isinstance(usage, dict):
+            return usage.get("total_tokens")
+        return getattr(usage, "total_tokens", None)
+    except Exception:  # noqa: BLE001 — best-effort only, never breaks the call
+        return None
+
+
 def call_llm_json(role: str, system_prompt: str, user_prompt: str, session_state=None,
-                   max_tokens: int = 2000) -> dict:
+                   max_tokens: int = 2000, detail: str = "") -> dict:
     result = call_llm(role, system_prompt, user_prompt, session_state,
-                       json_mode=True, max_tokens=max_tokens)
+                       json_mode=True, max_tokens=max_tokens, detail=detail)
     text = result.text.strip()
     # some providers wrap JSON in ```json fences despite response_format
     if text.startswith("```"):

@@ -1,6 +1,6 @@
 import type {
   AttackPathsResponse, Compliance, Correlation, FindingDetail, GraphPayload,
-  Kpis, Overview, ProvidersResponse, Remediation, TeamStat,
+  Kpis, LogEntry, Overview, ProvidersResponse, Remediation, TeamStat,
 } from "./types";
 import type { Finding } from "./types";
 
@@ -38,19 +38,24 @@ export const api = {
     post<{ ok: boolean }>("/settings/providers", { provider, api_key }),
   setAgent: (role: string, provider: string) =>
     post<{ ok: boolean }>("/settings/agent", { role, provider }),
+  logs: () => get<{ logs: LogEntry[] }>("/logs"),
 };
 
-/** Stream Server-Sent Events; calls onEvent(event, data) per frame. */
+/**
+ * Stream Server-Sent Events; calls onEvent(event, data) per frame.
+ * Pass `body` for a POST stream (chat, analyze) or omit it for a GET stream
+ * (the live agent-activity log).
+ */
 export async function streamSSE(
   path: string,
-  body: unknown,
+  body: unknown | undefined,
   onEvent: (event: string, data: any) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const r = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method: body === undefined ? "GET" : "POST",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
   if (!r.body) throw new Error("No stream body");

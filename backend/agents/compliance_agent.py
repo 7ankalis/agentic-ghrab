@@ -29,6 +29,7 @@ def compliance_summary(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> dict
         "'executive_summary' (3-4 sentences an auditor or board member could read)."
     )
     try:
-        return ask_json("compliance", task, context, session_state=session_state, max_tokens=1800)
+        return ask_json("compliance", task, context, session_state=session_state, max_tokens=1800,
+                        detail="compliance posture briefing")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
