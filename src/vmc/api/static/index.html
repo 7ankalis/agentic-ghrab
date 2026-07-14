@@ -22,9 +22,16 @@
     </nav>
     <div class="topbar-spacer"></div>
     <button id="run-btn" class="btn-run">Run Analysis</button>
-    <div class="topbar-status" id="run-status">
-      <span class="status-dot"></span>
-      <span id="run-status-text">Not run yet</span>
+    <div class="run-status-wrap">
+      <button class="topbar-status" id="run-status-toggle" type="button">
+        <span class="status-dot" id="run-status-dot"></span>
+        <span id="run-status-text">Not run yet</span>
+        <span class="progress-caret">▾</span>
+      </button>
+      <div class="progress-panel hidden" id="progress-panel">
+        <div class="progress-panel-title">Pipeline Progress</div>
+        <div id="progress-steps"></div>
+      </div>
     </div>
   </header>
 

@@ -14,19 +14,32 @@ Run with:
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from vmc.agents.compliance import framework_rollup
 from vmc.models import ExposureContext
-from vmc.orchestrator import get_cached_context, run_pipeline
+from vmc.orchestrator import (
+    RUN_COMPLETE,
+    RUN_ERROR,
+    get_cached_context,
+    get_progress_snapshot,
+    run_pipeline,
+    subscribe_progress,
+    unsubscribe_progress,
+)
 from vmc.providers.router import ModelRouter
+
+logger = logging.getLogger("vmc.api")
 
 ROOT = Path(__file__).parent.parent.parent.parent  # vmc-platform/
 load_dotenv(ROOT / ".env")
@@ -78,6 +91,12 @@ def _build_provider_registry() -> dict:
 
         registry["anthropic"] = lambda model, temperature: AnthropicProvider(model, temperature, api_key=anthropic_key)
 
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    if deepseek_key:
+        from vmc.providers.deepseek_provider import DeepSeekProvider
+
+        registry["deepseek"] = lambda model, temperature: DeepSeekProvider(model, temperature, api_key=deepseek_key)
+
     # Ollama needs no key — a local daemon is either reachable or it isn't.
     from vmc.providers.ollama_provider import OllamaProvider
 
@@ -102,9 +121,12 @@ def _get_router() -> ModelRouter | None:
 # ---------------------------------------------------------------------------
 
 
-class RunResult(BaseModel):
-    run_id: str
-    finding_count: int
+class RunAck(BaseModel):
+    started: bool
+    already_running: bool = False
+
+
+_active_run_task: asyncio.Task | None = None
 
 
 def _require_sample_data() -> None:
@@ -130,25 +152,83 @@ def _get_context() -> ExposureContext:
 
 
 @app.post("/api/run")
-async def start_run() -> RunResult:
+async def start_run() -> RunAck:
+    """Fire-and-forget: kicks off the pipeline in the background and returns
+    immediately. Progress streams over `GET /api/run/progress` (SSE); the
+    frontend refreshes from `GET /api/run/latest` once it sees the
+    `RUN_COMPLETE` event. This is what makes live per-agent progress
+    possible — a blocking request/response can't show "which agent is
+    running right now" to anyone watching, only "done or not done"."""
+    global _active_run_task
     _require_sample_data()
-    context = await run_pipeline(FINDINGS_CSV, ARCHITECTURE_MD, _get_router())
-    return RunResult(run_id=context.run_id, finding_count=len(context.findings))
+
+    if _active_run_task is not None and not _active_run_task.done():
+        return RunAck(started=False, already_running=True)
+
+    async def _run_and_log() -> None:
+        try:
+            await run_pipeline(FINDINGS_CSV, ARCHITECTURE_MD, _get_router())
+        except Exception:  # noqa: BLE001 - a background task's exception must be caught, not just logged by asyncio
+            logger.exception("pipeline run failed")
+
+    _active_run_task = asyncio.create_task(_run_and_log())
+    return RunAck(started=True)
+
+
+@app.get("/api/run/progress")
+async def stream_run_progress() -> StreamingResponse:
+    """SSE stream of per-agent progress for the currently running (or most
+    recently completed) pipeline run — the "which agent is running right
+    now" admin visibility. Sends the current snapshot immediately so a
+    client connecting mid-run isn't stuck waiting for the next event, then
+    streams live updates until `RUN_COMPLETE`/`RUN_ERROR`."""
+
+    async def event_stream():
+        queue = subscribe_progress()
+        try:
+            for event in get_progress_snapshot():
+                yield f"data: {json.dumps(event)}\n\n"
+            while True:
+                event = await queue.get()
+                yield f"data: {json.dumps(event)}\n\n"
+                if event["agent_name"] in (RUN_COMPLETE, RUN_ERROR):
+                    break
+        finally:
+            unsubscribe_progress(queue)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/run/latest")
 async def get_latest_run() -> dict:
     context = _get_context()
+
+    # Agent 4 discovers paths itself now (no more CSV Attack_Path_Ref ground
+    # truth) — build the finding_id -> (path_ref, step_ref) lookup here so
+    # the frontend never has to parse anything, it just reads the field.
+    path_ref_by_finding_id: dict[str, tuple[str, str]] = {}
+    for path in context.attack_paths.values():
+        for step in path.steps:
+            if step.finding_id:
+                path_ref_by_finding_id[step.finding_id] = (path.path_ref, step.step_ref)
+
     rows = []
     for finding in context.findings:
         assessment = context.risk_register.get(finding.finding_id)
         asset = context.assets.get(finding.asset_hostname) or context.assets.get(finding.asset_ip)
+        path_ref, step_ref = path_ref_by_finding_id.get(finding.finding_id, (None, None))
         rows.append(
             {
                 **finding.model_dump(),
                 "risk": assessment.model_dump() if assessment else None,
                 "criticality_tier": asset.criticality_tier if asset else None,
                 "compliance_scope": asset.compliance_scope if asset else [],
+                "path_ref": path_ref,
+                "path_step_ref": step_ref,
             }
         )
     rows.sort(key=lambda r: (r["risk"]["score"] if r["risk"] else -1), reverse=True)

@@ -12,6 +12,7 @@ const BAND_COLORS = {
 
 let allRows = [];
 let attackPaths = {};
+let agentLogs = [];
 let chokePoints = [];
 let chokePointFindingIds = new Set();
 let teamBriefs = [];
@@ -22,6 +23,23 @@ let sortAsc = false;
 let hasRunOnce = false;
 let cy = null;
 let activePathRef = null;
+
+// Mirrors orchestrator.AGENT_LABELS/AGENT_SEQUENCE — duplicated so the
+// progress panel can render all 7 steps immediately on click, before the
+// first SSE event arrives.
+const AGENT_STEPS = [
+  ["agent1_ingest", "Agent 1 — Ingest & Normalize"],
+  ["agent2_topology", "Agent 2 — Topology & Segmentation"],
+  ["agent3_threat_intel", "Agent 3 — Threat Intel Enrichment"],
+  ["agent4_attack_paths", "Agent 4 — Attack Path Discovery (AI)"],
+  ["agent5_risk_scoring", "Agent 5 — GRS Risk Scoring (AI)"],
+  ["agent6_compliance", "Agent 6 — Compliance Mapping"],
+  ["agent7_routing", "Agent 7 — Team Routing"],
+];
+const STEP_ICON = { pending: "", running: "", ok: "✓", degraded: "!", failed: "✕" };
+
+let progressState = {};
+let progressEventSource = null;
 
 function bandSlug(band) {
   return band === "TRACK*" ? "TRACK-STAR" : band;
@@ -43,6 +61,19 @@ function main() {
     activeBands = new Set(["IMMEDIATE"]);
     renderBandFilters({});
     renderTable();
+  });
+
+  document.getElementById("run-status-toggle").addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelector(".run-status-wrap").classList.toggle("open");
+    document.getElementById("progress-panel").classList.toggle("hidden");
+  });
+  document.addEventListener("click", (e) => {
+    const wrap = document.querySelector(".run-status-wrap");
+    if (!wrap.contains(e.target)) {
+      wrap.classList.remove("open");
+      document.getElementById("progress-panel").classList.add("hidden");
+    }
   });
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -90,24 +121,110 @@ async function fetchJson(url, opts) {
   return res.json();
 }
 
+function resetProgressPanel() {
+  progressState = {};
+  AGENT_STEPS.forEach(([name, label]) => {
+    progressState[name] = { status: "pending", detail: "", label };
+  });
+  renderProgressPanel();
+}
+
+function renderProgressPanel() {
+  document.getElementById("progress-steps").innerHTML = AGENT_STEPS.map(([name, label]) => {
+    const s = progressState[name] || { status: "pending", detail: "" };
+    return `
+      <div class="progress-step">
+        <div class="progress-step-icon ${s.status}">${STEP_ICON[s.status] || ""}</div>
+        <div class="progress-step-body">
+          <div class="progress-step-label">${escapeHtml(label)}</div>
+          ${s.detail ? `<div class="progress-step-detail">${escapeHtml(s.detail)}</div>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function updateRunStatusSummary() {
+  const dot = document.getElementById("run-status-dot");
+  const text = document.getElementById("run-status-text");
+  const total = AGENT_STEPS.length;
+  const done = AGENT_STEPS.filter(([name]) => ["ok", "degraded"].includes((progressState[name] || {}).status)).length;
+  const runningStep = AGENT_STEPS.find(([name]) => (progressState[name] || {}).status === "running");
+  const failedStep = AGENT_STEPS.find(([name]) => (progressState[name] || {}).status === "failed");
+
+  if (failedStep) {
+    dot.className = "status-dot error";
+    text.textContent = `Failed at ${failedStep[1]}`;
+  } else if (runningStep) {
+    dot.className = "status-dot running";
+    text.textContent = `${runningStep[1].replace(/^Agent \d+ — /, "")} (${done}/${total})`;
+  } else if (done === total && hasRunOnce) {
+    dot.className = "status-dot done";
+    text.textContent = `Scored ${allRows.length} findings`;
+  } else if (!hasRunOnce) {
+    dot.className = "status-dot";
+    text.textContent = "Not run yet";
+  }
+}
+
 async function runAnalysis() {
   const btn = document.getElementById("run-btn");
-  const statusText = document.getElementById("run-status-text");
-  const dot = document.querySelector("#run-status .status-dot");
   btn.disabled = true;
-  dot.className = "status-dot running";
-  statusText.textContent = "Running Agents 1–7…";
+  resetProgressPanel();
+  document.querySelector(".run-status-wrap").classList.add("open");
+  document.getElementById("progress-panel").classList.remove("hidden");
+
+  if (progressEventSource) progressEventSource.close();
+  progressEventSource = new EventSource("/api/run/progress");
+
+  progressEventSource.onmessage = async (evt) => {
+    const data = JSON.parse(evt.data);
+
+    if (data.agent_name === "__complete__") {
+      progressEventSource.close();
+      progressEventSource = null;
+      try {
+        await loadLatestRun();
+      } catch (e) {
+        document.getElementById("run-status-text").textContent = `Run finished but reload failed: ${e.message}`;
+      }
+      btn.disabled = false;
+      return;
+    }
+    if (data.agent_name === "__error__") {
+      progressEventSource.close();
+      progressEventSource = null;
+      document.getElementById("run-status-dot").className = "status-dot error";
+      document.getElementById("run-status-text").textContent = `Failed: ${data.detail}`;
+      btn.disabled = false;
+      return;
+    }
+
+    progressState[data.agent_name] = { status: data.status, detail: data.detail, label: data.label };
+    renderProgressPanel();
+    updateRunStatusSummary();
+  };
+
+  progressEventSource.onerror = () => {
+    // stream dropped (e.g. server restarted mid-run) — don't leave the UI stuck
+    if (progressEventSource) {
+      progressEventSource.close();
+      progressEventSource = null;
+    }
+    btn.disabled = false;
+  };
 
   try {
-    await fetchJson("/api/run", { method: "POST" });
-    await loadLatestRun();
-    dot.className = "status-dot done";
-    statusText.textContent = `Scored ${allRows.length} findings`;
-    hasRunOnce = true;
+    const ack = await fetchJson("/api/run", { method: "POST" });
+    if (ack.already_running) {
+      document.getElementById("run-status-text").textContent = "A run is already in progress…";
+    }
   } catch (e) {
-    dot.className = "status-dot";
-    statusText.textContent = `Failed: ${e.message}`;
-  } finally {
+    document.getElementById("run-status-dot").className = "status-dot error";
+    document.getElementById("run-status-text").textContent = `Failed: ${e.message}`;
+    if (progressEventSource) {
+      progressEventSource.close();
+      progressEventSource = null;
+    }
     btn.disabled = false;
   }
 }
@@ -123,6 +240,7 @@ async function loadLatestRun() {
 
   allRows = run.findings;
   attackPaths = run.attack_paths;
+  agentLogs = run.agent_logs;
   chokePoints = run.choke_points;
   chokePointFindingIds = new Set(chokePoints.map((cp) => cp.finding_id));
   teamBriefs = teams;
@@ -136,7 +254,7 @@ async function loadLatestRun() {
   renderDataQualityIssues(dqIssues);
   renderAlertBanner(summary);
 
-  document.querySelector("#run-status .status-dot").className = "status-dot done";
+  document.getElementById("run-status-dot").className = "status-dot done";
   document.getElementById("run-status-text").textContent = `Scored ${allRows.length} findings`;
 
   renderTable();
@@ -337,9 +455,8 @@ function openDrawer(row) {
   document.getElementById("drawer-title").textContent = row.title;
 
   const b = risk ? risk.score_breakdown : {};
-  const pathRef = (row.attack_path_refs || []).find((ref) => /^PATH-[A-Z]-Step\d+/.test(ref));
-  const pathLetter = pathRef ? pathRef.match(/^PATH-([A-Z])/)[1] : null;
-  const path = pathLetter ? attackPaths[`PATH-${pathLetter}`] : null;
+  const stepRef = row.path_step_ref;
+  const path = row.path_ref ? attackPaths[row.path_ref] : null;
 
   const body = document.getElementById("drawer-body");
   body.innerHTML = `
@@ -391,7 +508,7 @@ function openDrawer(row) {
     <div class="detail-row" style="margin-top:16px">
       <div class="detail-row-label">Attack Path — ${path.path_ref}${path.target_asset ? ` → ${escapeHtml(path.target_asset)}` : ""}</div>
       <div class="attack-path-chain">
-        ${path.steps.map((s) => `<div class="attack-path-step ${s.step_ref === pathRef ? "this-step" : ""}">${escapeHtml(s.step_ref)} — ${escapeHtml(s.description)}</div>`).join("")}
+        ${path.steps.map((s) => `<div class="attack-path-step ${s.step_ref === stepRef ? "this-step" : ""}">${escapeHtml(s.step_ref)} — ${escapeHtml(s.description)}</div>`).join("")}
       </div>
     </div>` : ""}
 
@@ -420,6 +537,10 @@ function closeDrawer() {
 
 // ══════════════════ Attack Paths tab (Cytoscape graph) ══════════════════
 
+function agent4LogEntry() {
+  return agentLogs.find((l) => l.agent_name === "agent4_attack_paths") || null;
+}
+
 function renderPathsTab() {
   const list = document.getElementById("path-list");
   list.innerHTML = "";
@@ -441,24 +562,28 @@ function renderPathsTab() {
   renderPathGraph(activePathRef);
 }
 
-function scoreForFindingId(findingId) {
-  const row = allRows.find((r) => r.finding_id === findingId);
-  return row && row.risk ? row.risk : null;
-}
-
 function renderPathGraph(pathRef) {
   const path = attackPaths[pathRef];
   const summaryEl = document.getElementById("path-summary");
   if (!path) {
-    summaryEl.textContent = "No attack paths discovered.";
+    if (cy) { cy.destroy(); cy = null; }
+    document.getElementById("cy").innerHTML = "";
+    const log = agent4LogEntry();
+    if (log && log.status === "degraded") {
+      summaryEl.innerHTML =
+        `<span style="color:${BAND_COLORS.ATTEND}">⚠ Attack path discovery didn't run</span> — the AI provider ` +
+        `was unavailable or rate/quota-limited during this run, not a "no chains found" result. ` +
+        `Check the server log for <code>provider ... failed</code> lines, add a working provider key to .env, ` +
+        `or wait for the quota to reset, then click <strong>Run Analysis</strong> again.`;
+    } else {
+      summaryEl.textContent = "No plausible multi-step attack chains found in this dataset.";
+    }
     return;
   }
   summaryEl.innerHTML = `<strong>${path.path_ref}</strong> — ${escapeHtml(path.summary)}`;
 
-  // Match each step to the finding that documents it (Finding.attack_path_refs).
-  const stepFindings = path.steps.map((step) =>
-    allRows.find((r) => (r.attack_path_refs || []).includes(step.step_ref))
-  );
+  // Each step already carries the finding_id Agent 4 validated it against.
+  const stepFindings = path.steps.map((step) => allRows.find((r) => r.finding_id === step.finding_id));
 
   const elements = [];
   path.steps.forEach((step, i) => {

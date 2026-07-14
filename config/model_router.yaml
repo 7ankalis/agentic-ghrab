@@ -30,6 +30,11 @@ agents:
     model: gemini-2.5-pro
     temperature: 0.1
 
-# Order tried after an agent's primary provider is exhausted. Ollama last so
-# offline/air-gapped deployments always have a local fallback.
-fallback_chain: [gemini, anthropic, groq, ollama]
+# Order tried after an agent's primary provider is exhausted. deepseek and
+# openai were previously implemented but never listed here, which meant
+# they could only ever be used as an agent's primary provider, never an
+# actual fallback (ModelRouter.providers_for() only tries what's in this
+# list) — deepseek is a cheap/fast general-purpose model, slotted next to
+# groq for the same reason. Ollama stays last so offline/air-gapped
+# deployments always have a local fallback.
+fallback_chain: [gemini, deepseek, anthropic, groq, openai, ollama]

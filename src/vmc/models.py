@@ -39,6 +39,11 @@ class Finding(BaseModel):
     remediation_text: str = ""
     patch_available: bool | None = None
     responsible_team: str
+    # Raw scanner-export ground truth (only present in the synthetic Ghrab
+    # dataset's Attack_Path_Ref column; a real Qualys/Nessus/Rapid7 export
+    # never has this). Ingested for transparency/audit only — Agent 4's
+    # attack-path discovery (agents/attack_paths.py) never reads this field,
+    # so its output is never leaking the answer key.
     attack_path_refs: list[str] = Field(default_factory=list)
     compliance_refs: list[str] = Field(default_factory=list)
     status: str = "Open"
