@@ -3,8 +3,61 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="light"] {
+    color-scheme: light;
+    /* Ghrab brand: #F7F2EE cream · #003C30 forest · #55A185 sage · #88A682 moss */
+    --c-base: 247 242 238;
+    --c-surface: 255 255 255;
+    --c-surface-2: 240 233 224;
+    --c-surface-3: 229 220 208;
+    --c-line: 219 210 198;
+    --c-line-strong: 198 187 172;
+    --c-ink: 10 26 21;
+    --c-ink-muted: 63 89 79;
+    --c-ink-faint: 96 117 106;
+    --c-forest: 0 60 48;
+    --c-forest-lit: 11 90 72;
+    --c-sage: 85 161 133;
+    --c-sage-bright: 20 108 84;
+    --c-immediate: 191 60 41;
+    --c-act: 170 84 22;
+    --c-attend: 138 101 18;
+    --c-track2: 42 92 133;
+    --c-track: 21 116 90;
+    --c-purple: 140 58 158;
+    --glow-1: rgba(85, 161, 133, 0.14);
+    --glow-2: rgba(0, 60, 48, 0.08);
+    --scroll-thumb: rgba(0, 60, 48, 0.18);
+    --scroll-thumb-strong: rgba(0, 60, 48, 0.28);
+    --shimmer: rgba(0, 60, 48, 0.06);
+  }
+  [data-theme="dark"] {
     color-scheme: dark;
+    --c-base: 8 12 11;
+    --c-surface: 14 22 20;
+    --c-surface-2: 19 30 26;
+    --c-surface-3: 26 40 34;
+    --c-line: 29 40 37;
+    --c-line-strong: 42 56 51;
+    --c-ink: 233 239 236;
+    --c-ink-muted: 159 176 169;
+    --c-ink-faint: 108 125 118;
+    --c-forest: 0 60 48;
+    --c-forest-lit: 11 90 72;
+    --c-sage: 85 161 133;
+    --c-sage-bright: 127 208 173;
+    --c-immediate: 240 85 63;
+    --c-act: 247 133 58;
+    --c-attend: 232 189 74;
+    --c-track2: 111 151 184;
+    --c-track: 79 174 139;
+    --c-purple: 201 123 216;
+    --glow-1: rgba(85, 161, 133, 0.1);
+    --glow-2: rgba(11, 90, 72, 0.12);
+    --scroll-thumb: rgba(140, 175, 160, 0.22);
+    --scroll-thumb-strong: rgba(140, 175, 160, 0.32);
+    --shimmer: rgba(140, 175, 160, 0.08);
   }
   html,
   body,
@@ -12,22 +65,22 @@
     height: 100%;
   }
   body {
-    @apply bg-base text-ink font-sans antialiased;
+    @apply bg-base text-ink font-sans antialiased transition-colors duration-200;
     background-image:
-      radial-gradient(1200px 600px at 88% -10%, rgba(85, 161, 133, 0.1), transparent 60%),
-      radial-gradient(900px 500px at 0% 0%, rgba(11, 90, 72, 0.12), transparent 55%);
+      radial-gradient(1200px 600px at 88% -10%, var(--glow-1), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, var(--glow-2), transparent 55%);
     background-attachment: fixed;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(140, 175, 160, 0.25) transparent;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   *::-webkit-scrollbar-thumb {
-    background: rgba(140, 175, 160, 0.22);
+    background: var(--scroll-thumb);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
@@ -67,7 +120,7 @@
   .skeleton::after {
     content: "";
     @apply absolute inset-0;
-    background: linear-gradient(90deg, transparent, rgba(140, 175, 160, 0.08), transparent);
+    background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
     animation: shimmer 1.4s infinite;
     transform: translateX(-100%);
   }

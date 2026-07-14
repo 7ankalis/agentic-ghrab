@@ -38,7 +38,7 @@ export default function Settings() {
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-semibold text-ink">{p.label}</span>
                 {p.configured ? (
-                  <Tag color="#4fae8b"><Check size={11} className="mr-0.5 inline" /> connected</Tag>
+                  <Tag color="rgb(var(--c-track))"><Check size={11} className="mr-0.5 inline" /> connected</Tag>
                 ) : (
                   <Tag>not set</Tag>
                 )}

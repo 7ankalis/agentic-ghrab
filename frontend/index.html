@@ -1,9 +1,20 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ghrab VOC — Vulnerability Operations Center</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("voc-theme");
+          var theme = stored === "dark" || stored === "light" ? stored : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

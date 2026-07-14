@@ -1,6 +1,8 @@
 import { AlertTriangle, Lightbulb, Users } from "lucide-react";
 import { useCorrelation } from "@/lib/hooks";
-import { OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { ExportButton, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { downloadMarkdown, timestamp } from "@/lib/report";
+import { buildCorrelationReport } from "@/lib/reportBuilders";
 
 export default function Correlation() {
   const { data, isLoading } = useCorrelation();
@@ -10,7 +12,10 @@ export default function Correlation() {
 
   return (
     <div className="animate-fade-up space-y-6">
-      <SectionTitle sub="Risk that isn't captured by any single finding — shared assets, credentials, and ownership the engine cross-references.">
+      <SectionTitle
+        sub="Risk that isn't captured by any single finding — shared assets, credentials, and ownership the engine cross-references."
+        right={<ExportButton onClick={() => downloadMarkdown(`ghrab-voc-correlation-${timestamp()}.md`, buildCorrelationReport(c))} />}
+      >
         Correlation & Toxic Combinations
       </SectionTitle>
 
@@ -59,7 +64,7 @@ export default function Correlation() {
                 {c.reprioritization_flags.map((f, i) => (
                   <div key={i} className="rounded-lg border border-line bg-surface-2/60 p-3 text-sm">
                     <div className="mb-1 flex items-center gap-2">
-                      <Tag color="#f7853a">QID {f.qid}</Tag>
+                      <Tag color="rgb(var(--c-act))">QID {f.qid}</Tag>
                       <span className="text-ink-faint">{f.hostname}</span>
                     </div>
                     <p className="text-ink-muted">{f.reason}</p>

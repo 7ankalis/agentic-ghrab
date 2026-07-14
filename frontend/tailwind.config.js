@@ -4,27 +4,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Command-center dark chrome, tinted toward the brand forest green.
-        base: "#080c0b",
-        surface: "#0e1614",
-        "surface-2": "#131e1a",
-        "surface-3": "#1a2822",
-        line: "rgba(140,175,160,0.12)",
-        "line-strong": "rgba(140,175,160,0.22)",
-        ink: "#e9efec",
-        "ink-muted": "#9fb0a9",
-        "ink-faint": "#6c7d76",
+        // Command-center chrome, tinted toward the brand forest green.
+        // Values are CSS custom properties so they can swap between light/dark themes.
+        base: "rgb(var(--c-base) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        "surface-2": "rgb(var(--c-surface-2) / <alpha-value>)",
+        "surface-3": "rgb(var(--c-surface-3) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        "line-strong": "rgb(var(--c-line-strong) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        "ink-muted": "rgb(var(--c-ink-muted) / <alpha-value>)",
+        "ink-faint": "rgb(var(--c-ink-faint) / <alpha-value>)",
         // Brand
-        forest: "#003c30",
-        "forest-lit": "#0b5a48",
-        sage: "#55a185",
-        "sage-bright": "#7fd0ad",
+        forest: "rgb(var(--c-forest) / <alpha-value>)",
+        "forest-lit": "rgb(var(--c-forest-lit) / <alpha-value>)",
+        sage: "rgb(var(--c-sage) / <alpha-value>)",
+        "sage-bright": "rgb(var(--c-sage-bright) / <alpha-value>)",
         // Status ramp (most → least urgent)
-        immediate: "#f0553f",
-        act: "#f7853a",
-        attend: "#e8bd4a",
-        track2: "#6f97b8",
-        track: "#4fae8b",
+        immediate: "rgb(var(--c-immediate) / <alpha-value>)",
+        act: "rgb(var(--c-act) / <alpha-value>)",
+        attend: "rgb(var(--c-attend) / <alpha-value>)",
+        track2: "rgb(var(--c-track2) / <alpha-value>)",
+        track: "rgb(var(--c-track) / <alpha-value>)",
+        purple: "rgb(var(--c-purple) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],

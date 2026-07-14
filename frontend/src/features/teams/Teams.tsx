@@ -2,18 +2,25 @@ import { useNavigate } from "react-router-dom";
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTeams } from "@/lib/hooks";
 import { bandColor, bandForGrs, initials } from "@/lib/format";
-import { BandPill, SectionTitle, Skeleton } from "@/components/ui";
+import { useChartColors } from "@/lib/chartColors";
+import { BandPill, ExportButton, SectionTitle, Skeleton } from "@/components/ui";
+import { downloadMarkdown, timestamp } from "@/lib/report";
+import { buildTeamsReport } from "@/lib/reportBuilders";
 
 export default function Teams() {
   const { data, isLoading } = useTeams();
   const nav = useNavigate();
+  const colors = useChartColors();
   if (isLoading || !data) return <Skeleton className="h-96" />;
   const teams = data.teams;
   const chart = teams.map((t) => ({ team: t.team.replace(/ Team$/, ""), grs: t.max_grs, band: bandForGrs(t.max_grs) }));
 
   return (
     <div className="animate-fade-up space-y-6">
-      <SectionTitle sub="Ownership and exposure by operational team — route remediation to the team that actually owns the fix.">
+      <SectionTitle
+        sub="Ownership and exposure by operational team — route remediation to the team that actually owns the fix."
+        right={<ExportButton onClick={() => downloadMarkdown(`ghrab-voc-teams-${timestamp()}.md`, buildTeamsReport(teams))} />}
+      >
         Teams & Ownership
       </SectionTitle>
 
@@ -21,10 +28,10 @@ export default function Teams() {
         <div className="label mb-3">Peak Risk (GRS) by Team</div>
         <ResponsiveContainer width="100%" height={230}>
           <BarChart data={chart} layout="vertical" margin={{ left: 8, right: 30, top: 4, bottom: 4 }}>
-            <XAxis type="number" domain={[0, 100]} stroke="#6c7d76" fontSize={11} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="team" width={130} stroke="#9fb0a9" fontSize={12} axisLine={false} tickLine={false} />
+            <XAxis type="number" domain={[0, 100]} stroke={colors.axisStroke} fontSize={11} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="team" width={130} stroke={colors.labelFill} fontSize={12} axisLine={false} tickLine={false} />
             <Tooltip
-              cursor={{ fill: "rgba(140,175,160,0.06)" }}
+              cursor={{ fill: colors.cursorFill }}
               content={({ active, payload }) =>
                 active && payload?.length ? (
                   <div className="rounded-lg border border-line-strong bg-surface-3/95 px-3 py-2 text-xs">
@@ -35,7 +42,7 @@ export default function Teams() {
             />
             <Bar dataKey="grs" radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={false}>
               {chart.map((c, i) => <Cell key={i} fill={bandColor(c.band)} />)}
-              <LabelList dataKey="grs" position="right" fill="#9fb0a9" fontSize={12} fontWeight={600} formatter={(v: number) => v.toFixed(0)} />
+              <LabelList dataKey="grs" position="right" fill={colors.labelFill} fontSize={12} fontWeight={600} formatter={(v: number) => v.toFixed(0)} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -62,10 +69,10 @@ export default function Teams() {
               {[
                 { k: "Immediate", v: t.immediate, c: bandColor("IMMEDIATE") },
                 { k: "KEV", v: t.kev, c: bandColor("ACT") },
-                { k: "DORA CIF", v: t.dora_cif, c: "#c97bd8" },
+                { k: "DORA CIF", v: t.dora_cif, c: "rgb(var(--c-purple))" },
               ].map((m) => (
                 <div key={m.k} className="rounded-lg border border-line bg-surface-2/50 py-2">
-                  <div className="font-display text-lg font-bold" style={{ color: m.v > 0 ? m.c : "#6c7d76" }}>{m.v}</div>
+                  <div className="font-display text-lg font-bold" style={{ color: m.v > 0 ? m.c : "rgb(var(--c-ink-faint))" }}>{m.v}</div>
                   <div className="text-[10px] uppercase tracking-wide text-ink-faint">{m.k}</div>
                 </div>
               ))}

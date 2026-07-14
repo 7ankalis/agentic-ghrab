@@ -3,7 +3,9 @@ import { ReactFlowProvider } from "reactflow";
 import { ChevronRight, Pause, Play, RotateCcw, Skull } from "lucide-react";
 import { useAttackPaths, useGraph } from "@/lib/hooks";
 import { EDGE_META, confidenceColor, cx } from "@/lib/format";
-import { AiBadge, AiCard, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { AiBadge, AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { downloadMarkdown, timestamp } from "@/lib/report";
+import { buildAttackPathsReport } from "@/lib/reportBuilders";
 import AttackGraph from "./AttackGraph";
 import PathDetail from "./PathDetail";
 import type { AttackPath } from "@/lib/types";
@@ -34,13 +36,16 @@ export default function AttackPaths() {
       <SectionTitle
         sub="Chains discovered autonomously by the reachability engine — never read from a script. Select one to trace it on the map."
         right={
-          <div className="flex items-center gap-3 text-[11px] text-ink-muted">
-            {Object.entries(EDGE_META).map(([k, m]) => (
-              <span key={k} className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 rounded" style={{ background: m.color, ...(m.dashed && { backgroundImage: "none" }) }} />
-                {m.label}
-              </span>
-            ))}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 text-[11px] text-ink-muted">
+              {Object.entries(EDGE_META).map(([k, m]) => (
+                <span key={k} className="flex items-center gap-1.5">
+                  <span className="h-0.5 w-4 rounded" style={{ background: m.color, ...(m.dashed && { backgroundImage: "none" }) }} />
+                  {m.label}
+                </span>
+              ))}
+            </div>
+            <ExportButton onClick={() => downloadMarkdown(`ghrab-voc-attack-paths-${timestamp()}.md`, buildAttackPathsReport(paths))} />
           </div>
         }
       >
@@ -83,15 +88,15 @@ export default function AttackPaths() {
                 <div className="mt-2 flex items-center gap-1.5 text-sm">
                   <span className="font-medium text-ink">{p.entry}</span>
                   <ChevronRight size={13} className="text-ink-faint" />
-                  <span className="truncate font-medium text-[#c97bd8]">{p.target}</span>
+                  <span className="truncate font-medium text-purple">{p.target}</span>
                 </div>
                 {p.headline && <p className="mt-1.5 line-clamp-2 text-xs text-ink-muted">{p.headline}</p>}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] text-ink-faint">{p.length} hops</span>
                   {p.novelty && p.novelty !== "textbook" && (
-                    <Tag color={p.novelty === "non-obvious" ? "#f0553f" : "#f7853a"}>{p.novelty}</Tag>
+                    <Tag color={p.novelty === "non-obvious" ? "rgb(var(--c-immediate))" : "rgb(var(--c-act))"}>{p.novelty}</Tag>
                   )}
-                  {p.max_grs >= 80 && <Tag color="#f0553f">peak {p.max_grs}</Tag>}
+                  {p.max_grs >= 80 && <Tag color="rgb(var(--c-immediate))">peak {p.max_grs}</Tag>}
                 </div>
               </button>
             ))}

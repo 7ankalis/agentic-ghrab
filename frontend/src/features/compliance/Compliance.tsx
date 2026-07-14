@@ -1,6 +1,8 @@
 import { BookMarked, FileWarning, ScrollText } from "lucide-react";
 import { useCompliance } from "@/lib/hooks";
-import { AiCard, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { AiCard, ExportButton, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { downloadMarkdown, timestamp } from "@/lib/report";
+import { buildComplianceReport } from "@/lib/reportBuilders";
 
 export default function Compliance() {
   const { data, isLoading } = useCompliance();
@@ -10,7 +12,10 @@ export default function Compliance() {
 
   return (
     <div className="animate-fade-up space-y-6">
-      <SectionTitle sub="Regulatory posture across PCI DSS, SWIFT CSP, and EU DORA — gaps flagged, not certifications asserted.">
+      <SectionTitle
+        sub="Regulatory posture across PCI DSS, SWIFT CSP, and EU DORA — gaps flagged, not certifications asserted."
+        right={<ExportButton onClick={() => downloadMarkdown(`ghrab-voc-compliance-${timestamp()}.md`, buildComplianceReport(c))} />}
+      >
         Compliance Posture
       </SectionTitle>
 
@@ -28,7 +33,7 @@ export default function Compliance() {
 
       {c.dora_overlay_note && (
         <div className="card flex items-start gap-3 p-4">
-          <ScrollText size={18} className="mt-0.5 shrink-0 text-[#c97bd8]" />
+          <ScrollText size={18} className="mt-0.5 shrink-0 text-purple" />
           <div>
             <div className="text-sm font-semibold text-ink">DORA CIF Overlay</div>
             <p className="mt-0.5 text-sm text-ink-muted">{c.dora_overlay_note}</p>
@@ -45,7 +50,7 @@ export default function Compliance() {
             {c.key_gaps.map((g, i) => (
               <div key={i} className="card p-4">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Tag color="#f7853a">{g.framework}</Tag>
+                  <Tag color="rgb(var(--c-act))">{g.framework}</Tag>
                   {g.finding_refs?.map((q) => <Tag key={q}>QID {q}</Tag>)}
                 </div>
                 <p className="text-sm text-ink-muted">{g.gap_description}</p>

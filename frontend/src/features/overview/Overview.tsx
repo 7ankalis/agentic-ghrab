@@ -4,8 +4,10 @@ import {
 } from "lucide-react";
 import { useOverview } from "@/lib/hooks";
 import { bandColor, cx } from "@/lib/format";
-import { AiCard, BandPill, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { AiCard, BandPill, ExportButton, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
 import { BandBar, RiskScatter } from "@/components/charts";
+import { downloadMarkdown, timestamp } from "@/lib/report";
+import { buildOverviewReport } from "@/lib/reportBuilders";
 import type { Band } from "@/lib/types";
 
 const ICONS = { total: Crosshair, immediate: ShieldAlert, avg: TrendingUp, kev: Zap, dora: Target, crown: Gem, paths: GitBranch };
@@ -32,13 +34,16 @@ export default function Overview() {
     { key: "avg", label: "Avg GRS", value: k.avg_grs, sub: "Composite risk", icon: ICONS.avg },
     { key: "kev", label: "KEV-listed", value: k.kev, sub: "Exploited in wild", icon: ICONS.kev, accent: bandColor("ACT") },
     { key: "dora", label: "DORA CIF", value: k.dora_cif, sub: "Critical functions", icon: ICONS.dora },
-    { key: "crown", label: "Crown Jewels", value: k.crown_jewels, sub: "High-value assets", icon: ICONS.crown, accent: "#c97bd8" },
-    { key: "paths", label: "Attack Paths", value: k.discovered_paths, sub: "Autonomously found", icon: ICONS.paths, accent: "#7fd0ad", to: "/attack-paths" },
+    { key: "crown", label: "Crown Jewels", value: k.crown_jewels, sub: "High-value assets", icon: ICONS.crown, accent: "rgb(var(--c-purple))" },
+    { key: "paths", label: "Attack Paths", value: k.discovered_paths, sub: "Autonomously found", icon: ICONS.paths, accent: "rgb(var(--c-sage-bright))", to: "/attack-paths" },
   ];
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <SectionTitle sub="Deterministic GRS engine + autonomous attack-path discovery, at a glance.">
+      <SectionTitle
+        sub="Deterministic GRS engine + autonomous attack-path discovery, at a glance."
+        right={<ExportButton onClick={() => downloadMarkdown(`ghrab-voc-overview-${timestamp()}.md`, buildOverviewReport(data))} />}
+      >
         Command Center
       </SectionTitle>
 
@@ -56,7 +61,7 @@ export default function Overview() {
             >
               <div
                 className="absolute inset-x-0 top-0 h-[3px]"
-                style={{ background: `linear-gradient(90deg, ${t.accent ?? "#55a185"}, transparent)` }}
+                style={{ background: `linear-gradient(90deg, ${t.accent ?? "rgb(var(--c-sage))"}, transparent)` }}
               />
               <Icon size={16} className="mb-2 text-ink-faint group-hover:text-sage-bright" style={t.accent ? { color: t.accent } : undefined} />
               <div className="font-display text-3xl font-bold leading-none text-ink">{t.value}</div>
@@ -96,7 +101,7 @@ export default function Overview() {
               >
                 <div
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-lg font-display text-sm font-bold"
-                  style={{ background: `${bandColor(f.band)}1f`, color: bandColor(f.band) }}
+                  style={{ background: `color-mix(in srgb, ${bandColor(f.band)} 14%, transparent)`, color: bandColor(f.band) }}
                 >
                   {f.grs}
                 </div>
@@ -113,7 +118,7 @@ export default function Overview() {
         </div>
 
         <div className="card p-5">
-          <SectionTitle right={<Tag color="#7fd0ad">{data.top_paths.length}</Tag>}>Top Attack Paths</SectionTitle>
+          <SectionTitle right={<Tag color="rgb(var(--c-sage-bright))">{data.top_paths.length}</Tag>}>Top Attack Paths</SectionTitle>
           <div className="space-y-2">
             {data.top_paths.map((p) => (
               <button

@@ -7,7 +7,9 @@ import {
 import { ArrowUpDown, Search, Zap } from "lucide-react";
 import { useFindings } from "@/lib/hooks";
 import { bandColor, cx } from "@/lib/format";
-import { BandPill, SectionTitle, Skeleton } from "@/components/ui";
+import { BandPill, ExportButton, SectionTitle, Skeleton } from "@/components/ui";
+import { downloadCSV, timestamp } from "@/lib/report";
+import { buildFindingsCSV } from "@/lib/reportBuilders";
 import FindingDrawer from "./FindingDrawer";
 import type { Finding } from "@/lib/types";
 
@@ -98,7 +100,15 @@ export default function Findings() {
 
   return (
     <div className="animate-fade-up">
-      <SectionTitle sub={`${filtered.length} of ${findings.length} findings · click any row to inspect`}>
+      <SectionTitle
+        sub={`${filtered.length} of ${findings.length} findings · click any row to inspect`}
+        right={
+          <ExportButton
+            label="Export CSV"
+            onClick={() => downloadCSV(`ghrab-voc-findings-${timestamp()}.csv`, buildFindingsCSV(filtered))}
+          />
+        }
+      >
         Vulnerability Findings
       </SectionTitle>
 

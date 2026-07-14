@@ -28,16 +28,19 @@ async def analyze(body: AnalyzeBody):
     def work():
         try:
             invalidate()
-            get_analysis(force_refresh=body.force_refresh, progress_cb=lambda m: q.put(("progress", m)))
-            q.put(("done", "Analysis complete"))
+            get_analysis(
+                force_refresh=body.force_refresh,
+                progress_cb=lambda m, level="info": q.put(("progress", m, level)),
+            )
+            q.put(("done", "Analysis complete", "info"))
         except Exception as exc:  # noqa: BLE001
-            q.put(("error", str(exc)))
+            q.put(("error", str(exc), "error"))
 
     async def gen():
         threading.Thread(target=work, daemon=True).start()
         while True:
-            event, msg = await asyncio.to_thread(q.get)
-            yield _sse(event, {"message": msg})
+            event, msg, level = await asyncio.to_thread(q.get)
+            yield _sse(event, {"message": msg, "level": level})
             if event in ("done", "error"):
                 break
 

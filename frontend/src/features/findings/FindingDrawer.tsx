@@ -52,8 +52,8 @@ export default function FindingDrawer({ qid, onClose }: { qid: number | null; on
         <div className="p-6 pt-14">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <BandPill band={f.band} />
-            {f.kev && <Tag color="#f7853a">KEV</Tag>}
-            {f.dora_cif && <Tag color="#c97bd8">DORA CIF</Tag>}
+            {f.kev && <Tag color="rgb(var(--c-act))">KEV</Tag>}
+            {f.dora_cif && <Tag color="rgb(var(--c-purple))">DORA CIF</Tag>}
             <span className="font-mono text-xs text-ink-faint">QID {f.qid}</span>
           </div>
           <h2 className="font-display text-xl font-semibold leading-snug text-ink">{f.title}</h2>
@@ -68,7 +68,7 @@ export default function FindingDrawer({ qid, onClose }: { qid: number | null; on
               <div className="text-sm font-semibold text-ink">{f.sla}</div>
               {f.capability && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <Tag color={TACTIC_COLOR[f.capability.tactic] ?? "#55a185"}>{f.capability.tactic}</Tag>
+                  <Tag color={TACTIC_COLOR[f.capability.tactic] ?? "rgb(var(--c-sage))"}>{f.capability.tactic}</Tag>
                   {f.capability.effects.slice(0, 3).map((e) => (
                     <Tag key={e}>{e.replace(/_/g, " ")}</Tag>
                   ))}
@@ -162,7 +162,7 @@ export default function FindingDrawer({ qid, onClose }: { qid: number | null; on
                 )}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {rem.data.risk_of_fix && <Tag>Risk: {rem.data.risk_of_fix}</Tag>}
-                  {rem.data.estimated_effort && <Tag color="#7fd0ad">{rem.data.estimated_effort}</Tag>}
+                  {rem.data.estimated_effort && <Tag color="rgb(var(--c-sage-bright))">{rem.data.estimated_effort}</Tag>}
                 </div>
               </div>
             )}

@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, Download, Sparkles } from "lucide-react";
 import { BAND_META, bandColor, cx } from "@/lib/format";
 import type { Band } from "@/lib/types";
+
+export function ExportButton({ onClick, label = "Export" }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick} className="btn-ghost !px-3 !py-1.5 text-xs">
+      <Download size={13} /> {label}
+    </button>
+  );
+}
 
 export function BandPill({ band, className }: { band: string; className?: string }) {
   const c = bandColor(band);
@@ -9,7 +17,11 @@ export function BandPill({ band, className }: { band: string; className?: string
   return (
     <span
       className={cx("pill", className)}
-      style={{ background: `${c}1f`, color: c, border: `1px solid ${c}44` }}
+      style={{
+        background: `color-mix(in srgb, ${c} 14%, transparent)`,
+        color: c,
+        border: `1px solid color-mix(in srgb, ${c} 32%, transparent)`,
+      }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
       {label}
@@ -23,7 +35,11 @@ export function Tag({ children, color }: { children: ReactNode; color?: string }
       className="pill"
       style={
         color
-          ? { background: `${color}1a`, color, border: `1px solid ${color}3a` }
+          ? {
+              background: `color-mix(in srgb, ${color} 12%, transparent)`,
+              color,
+              border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+            }
           : undefined
       }
     >

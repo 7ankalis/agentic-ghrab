@@ -30,7 +30,7 @@ function AssetNode({ data }: NodeProps<NodeData>) {
       </div>
     );
   }
-  const color = data.crown ? "#c97bd8" : bandColor(bandForGrs(data.grs));
+  const color = data.crown ? "rgb(var(--c-purple))" : bandColor(bandForGrs(data.grs));
   const Icon = data.crown ? Gem : data.entry ? Radio : Server;
   return (
     <div
@@ -39,12 +39,15 @@ function AssetNode({ data }: NodeProps<NodeData>) {
         data.active ? "shadow-glow" : "shadow-card",
         data.dim ? "opacity-20" : "opacity-100",
       )}
-      style={{ borderColor: data.active ? color : "rgba(140,175,160,0.18)" }}
+      style={{ borderColor: data.active ? color : "rgb(var(--c-line-strong))" }}
     >
       <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-ink-faint" />
       <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-ink-faint" />
       <div className="flex items-center gap-2">
-        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: `${color}1f` }}>
+        <div
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+          style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+        >
           <Icon size={15} style={{ color }} />
         </div>
         <div className="min-w-0">
@@ -54,12 +57,15 @@ function AssetNode({ data }: NodeProps<NodeData>) {
       </div>
       <div className="mt-1.5 flex items-center gap-1.5">
         {data.grs > 0 && (
-          <span className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold" style={{ background: `${color}22`, color }}>
+          <span
+            className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold"
+            style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
+          >
             GRS {data.grs}
           </span>
         )}
         {data.entry && <span className="rounded bg-immediate/15 px-1.5 py-0.5 text-[10px] font-semibold text-immediate">ENTRY</span>}
-        {data.crown && <span className="rounded bg-[#c97bd8]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#c97bd8]">CROWN</span>}
+        {data.crown && <span className="rounded bg-purple/15 px-1.5 py-0.5 text-[10px] font-semibold text-purple">CROWN</span>}
       </div>
     </div>
   );

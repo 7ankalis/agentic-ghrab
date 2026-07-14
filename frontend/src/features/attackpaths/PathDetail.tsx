@@ -14,7 +14,7 @@ const KIND_ICON: Record<string, typeof KeyRound> = {
 function Step({ step, index }: { step: PathStep; index: number }) {
   const meta = EDGE_META[step.arrival_kind] ?? EDGE_META.lateral;
   const Icon = KIND_ICON[step.arrival_kind] ?? ArrowDown;
-  const color = step.grs > 0 ? bandColor(step.grs >= 80 ? "IMMEDIATE" : step.grs >= 60 ? "ACT" : step.grs >= 40 ? "ATTEND" : "TRACK*") : "#6c7d76";
+  const color = step.grs > 0 ? bandColor(step.grs >= 80 ? "IMMEDIATE" : step.grs >= 60 ? "ACT" : step.grs >= 40 ? "ATTEND" : "TRACK*") : "rgb(var(--c-ink-faint))";
   return (
     <div className="relative pl-8">
       <div className="absolute left-0 top-1 grid h-6 w-6 place-items-center rounded-full border-2 bg-surface" style={{ borderColor: color }}>
@@ -25,7 +25,7 @@ function Step({ step, index }: { step: PathStep; index: number }) {
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-ink">{step.host}</span>
           {step.grs > 0 && (
-            <span className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold" style={{ background: `${color}22`, color }}>
+            <span className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold" style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}>
               GRS {step.grs}
             </span>
           )}

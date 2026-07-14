@@ -1,5 +1,18 @@
 export type Band = "IMMEDIATE" | "ACT" | "ATTEND" | "TRACK*" | "TRACK";
 
+export interface LogEntry {
+  id: number;
+  ts: number;
+  role: string;
+  provider: string;
+  model: string;
+  event: "start" | "success" | "error";
+  duration_ms: number | null;
+  tokens: number | null;
+  error: string | null;
+  detail: string;
+}
+
 export interface Capability {
   technique: string;
   tactic: string;

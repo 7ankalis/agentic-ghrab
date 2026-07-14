@@ -63,9 +63,9 @@ def _save_cache(payload: dict) -> None:
 
 def run_pipeline(session_state=None, force_refresh: bool = False,
                  progress_cb=None) -> AnalysisResult:
-    def report(msg: str):
+    def report(msg: str, level: str = "info"):
         if progress_cb:
-            progress_cb(msg)
+            progress_cb(msg, level)
 
     report("Ingesting vulnerability export + computing GRS for every finding…")
     df = get_vulnerabilities()
@@ -100,15 +100,24 @@ def run_pipeline(session_state=None, force_refresh: bool = False,
 
     report("Discovery Agent: validating, ranking, and narrating attack chains…")
     result.discovery = analyze_paths(paths, df, cmdb, session_state)
+    disc_err = result.discovery.get("paths_error") or result.discovery.get("combos_error")
+    if disc_err:
+        report(f"Discovery Agent — provider error, deterministic chains still stand: {disc_err}", "warn")
 
     report("Correlation Agent: cross-referencing findings, assets, and teams…")
     result.correlation = find_toxic_combinations(df, cmdb, session_state)
+    if result.correlation.get("error"):
+        report(f"Correlation Agent — provider error: {result.correlation['error']}", "warn")
 
     report("Compliance Agent: building regulatory posture briefing…")
     result.compliance = compliance_summary(df, cmdb, session_state)
+    if result.compliance.get("error"):
+        report(f"Compliance Agent — provider error: {result.compliance['error']}", "warn")
 
     report("Triage Agent: drafting executive synthesis…")
     result.executive_summary = executive_synthesis(df, cmdb, session_state)
+    if result.executive_summary.startswith("AI executive synthesis unavailable"):
+        report(f"Triage Agent — provider error: {result.executive_summary}", "warn")
 
     _save_cache({
         "discovery": result.discovery,

@@ -3,10 +3,8 @@ import {
   ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from "recharts";
 import { BAND_META, BAND_ORDER, bandColor } from "@/lib/format";
+import { useChartColors } from "@/lib/chartColors";
 import type { Band, Kpis, Overview } from "@/lib/types";
-
-const AXIS = { stroke: "#6c7d76", fontSize: 11, fontFamily: "Inter" };
-const GRID = "rgba(140,175,160,0.10)";
 
 function TooltipBox({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +15,8 @@ function TooltipBox({ children }: { children: React.ReactNode }) {
 }
 
 export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; onSelect?: (b: Band) => void }) {
+  const colors = useChartColors();
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
   const rows = BAND_ORDER.map((b) => ({
     band: b,
     label: BAND_META[b].label,
@@ -28,7 +28,7 @@ export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; o
         <XAxis type="number" {...AXIS} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="label" width={78} {...AXIS} axisLine={false} tickLine={false} />
         <Tooltip
-          cursor={{ fill: "rgba(140,175,160,0.06)" }}
+          cursor={{ fill: colors.cursorFill }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <TooltipBox>
@@ -44,7 +44,7 @@ export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; o
           {rows.map((r) => (
             <Cell key={r.band} fill={bandColor(r.band)} />
           ))}
-          <LabelList dataKey="count" position="right" fill="#9fb0a9" fontSize={12} fontWeight={600} />
+          <LabelList dataKey="count" position="right" fill={colors.labelFill} fontSize={12} fontWeight={600} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -52,27 +52,29 @@ export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; o
 }
 
 export function RiskScatter({ data }: { data: Overview["cvss_vs_grs"] }) {
+  const colors = useChartColors();
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ScatterChart margin={{ left: 4, right: 16, top: 8, bottom: 18 }}>
         <ReferenceLine
           segment={[{ x: 0, y: 0 }, { x: 10, y: 100 }]}
-          stroke="rgba(140,175,160,0.28)"
+          stroke={colors.gridStrong}
           strokeDasharray="4 4"
         />
         <XAxis
           type="number" dataKey="cvss" name="CVSS" domain={[0, 10.5]} {...AXIS}
-          axisLine={{ stroke: GRID }} tickLine={false}
-          label={{ value: "CVSS Base", position: "bottom", offset: -4, fill: "#6c7d76", fontSize: 11 }}
+          axisLine={{ stroke: colors.grid }} tickLine={false}
+          label={{ value: "CVSS Base", position: "bottom", offset: -4, fill: colors.axisStroke, fontSize: 11 }}
         />
         <YAxis
           type="number" dataKey="grs" name="GRS" domain={[0, 105]} {...AXIS}
-          axisLine={{ stroke: GRID }} tickLine={false}
-          label={{ value: "Ghrab Risk Score", angle: -90, position: "insideLeft", fill: "#6c7d76", fontSize: 11 }}
+          axisLine={{ stroke: colors.grid }} tickLine={false}
+          label={{ value: "Ghrab Risk Score", angle: -90, position: "insideLeft", fill: colors.axisStroke, fontSize: 11 }}
         />
         <ZAxis range={[70, 70]} />
         <Tooltip
-          cursor={{ stroke: "rgba(140,175,160,0.25)" }}
+          cursor={{ stroke: colors.cursorStroke }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <TooltipBox>
@@ -94,7 +96,7 @@ export function RiskScatter({ data }: { data: Overview["cvss_vs_grs"] }) {
             data={data.filter((d) => d.band === b)}
             fill={bandColor(b)}
             fillOpacity={0.85}
-            stroke="#0e1614"
+            stroke={colors.pointStroke}
             strokeWidth={1.5}
             isAnimationActive={false}
           />
