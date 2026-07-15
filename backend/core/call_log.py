@@ -35,6 +35,11 @@ class CallEvent:
     event: str                    # "start" | "success" | "error"
     duration_ms: float | None = None
     tokens: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cost_usd: float | None = None
+    attempt: int = 1               # 1-based attempt across the whole logical call (retries + fallbacks)
+    group_id: str = ""             # ties start/finish + every retry/fallback attempt of one logical call() together
     error: str | None = None
     detail: str = ""              # short human label, e.g. "remediation QID 90512"
 
@@ -50,25 +55,36 @@ def _publish(ev: CallEvent) -> None:
         q.put(d)
 
 
-def start(role: str, provider: str, model: str, detail: str = "") -> int:
+def start(role: str, provider: str, model: str, detail: str = "",
+          attempt: int = 1, group_id: str = "") -> int:
     call_id = next(_counter)
     _publish(CallEvent(id=call_id, ts=time.time(), role=role, provider=provider,
-                        model=model, event="start", detail=detail))
+                        model=model, event="start", detail=detail,
+                        attempt=attempt, group_id=group_id))
     return call_id
 
 
 def finish(call_id: int, role: str, provider: str, model: str, ok: bool,
            duration_ms: float, tokens: int | None = None,
-           error: str | None = None, detail: str = "") -> None:
+           prompt_tokens: int | None = None, completion_tokens: int | None = None,
+           cost_usd: float | None = None, error: str | None = None, detail: str = "",
+           attempt: int = 1, group_id: str = "") -> None:
     _publish(CallEvent(id=call_id, ts=time.time(), role=role, provider=provider,
                         model=model, event="success" if ok else "error",
                         duration_ms=round(duration_ms, 1), tokens=tokens,
-                        error=error, detail=detail))
+                        prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+                        cost_usd=cost_usd, error=error, detail=detail,
+                        attempt=attempt, group_id=group_id))
 
 
 def history() -> list[dict]:
     with _lock:
         return list(_history)
+
+
+def clear() -> None:
+    with _lock:
+        _history.clear()
 
 
 def subscribe() -> queue.Queue:

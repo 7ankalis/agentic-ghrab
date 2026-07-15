@@ -18,6 +18,14 @@ def get_logs():
     return {"logs": call_log.history()}
 
 
+@router.delete("/logs")
+def clear_logs():
+    """Wipe the in-memory log buffer — lets an operator start a clean debug
+    session without restarting the backend."""
+    call_log.clear()
+    return {"ok": True}
+
+
 @router.get("/logs/stream")
 async def stream_logs():
     """SSE tail. Replays recent history immediately on connect so a freshly
@@ -26,7 +34,7 @@ async def stream_logs():
 
     async def gen():
         try:
-            for entry in call_log.history()[-50:]:
+            for entry in call_log.history():
                 yield sse("log", entry)
             while True:
                 entry = await asyncio.to_thread(q.get)

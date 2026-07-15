@@ -22,6 +22,12 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   return r.json() as Promise<T>;
 }
 
+async function del<T>(path: string): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, { method: "DELETE" });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${path}`);
+  return r.json() as Promise<T>;
+}
+
 export const api = {
   overview: () => get<Overview>("/overview"),
   kpis: () => get<Kpis>("/kpis"),
@@ -39,6 +45,7 @@ export const api = {
   setAgent: (role: string, provider: string) =>
     post<{ ok: boolean }>("/settings/agent", { role, provider }),
   logs: () => get<{ logs: LogEntry[] }>("/logs"),
+  clearLogs: () => del<{ ok: boolean }>("/logs"),
 };
 
 /**

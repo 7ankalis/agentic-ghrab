@@ -39,6 +39,16 @@ export const AGENT_LABELS: Record<string, string> = {
   triage: "Triage / Analyst Agent",
 };
 
+export const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic (Claude)",
+  openai: "OpenAI (GPT)",
+  groq: "Groq",
+  mistral: "Mistral",
+  gemini: "Google (Gemini)",
+  deepseek: "DeepSeek",
+  xai: "xAI (Grok)",
+};
+
 export const TACTIC_COLOR: Record<string, string> = {
   "Initial Access": "rgb(var(--c-immediate))",
   Execution: "rgb(var(--c-act))",

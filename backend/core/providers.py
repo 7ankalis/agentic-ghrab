@@ -14,6 +14,7 @@ import json
 import logging
 import threading
 import time
+import uuid
 from dataclasses import dataclass
 
 from core import call_log
@@ -131,6 +132,8 @@ def call_llm(
     litellm.suppress_debug_info = True
     order = _agent_provider_order(role, session_state)
     last_err: Exception | None = None
+    group_id = uuid.uuid4().hex[:8]
+    overall_attempt = 0
 
     for provider_key in order:
         api_key = get_api_key(provider_key, session_state)
@@ -158,19 +161,26 @@ def call_llm(
         # through — the next provider is on an equally small free tier, so burning
         # straight through the chain just spreads the 429s around.
         for attempt in range(LLM_MAX_RETRIES + 1):
+            overall_attempt += 1
             _throttle(provider_key)
-            call_id = call_log.start(role, provider_key, model_id, detail)
+            call_id = call_log.start(role, provider_key, model_id, detail,
+                                      attempt=overall_attempt, group_id=group_id)
             t0 = time.monotonic()
             try:
                 resp = litellm.completion(**kwargs)
                 text = resp["choices"][0]["message"]["content"]
-                tokens = _extract_tokens(resp)
+                tokens, prompt_tokens, completion_tokens = _extract_tokens(resp)
+                cost_usd = _extract_cost(resp)
                 call_log.finish(call_id, role, provider_key, model_id, True,
-                                (time.monotonic() - t0) * 1000, tokens=tokens, detail=detail)
+                                (time.monotonic() - t0) * 1000, tokens=tokens,
+                                prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+                                cost_usd=cost_usd, detail=detail,
+                                attempt=overall_attempt, group_id=group_id)
                 return LLMResult(text=text, provider=provider_key, model=model_id)
             except Exception as exc:  # noqa: BLE001 - deliberately broad, we retry / fall back
                 call_log.finish(call_id, role, provider_key, model_id, False,
-                                (time.monotonic() - t0) * 1000, error=str(exc)[:300], detail=detail)
+                                (time.monotonic() - t0) * 1000, error=str(exc)[:800], detail=detail,
+                                attempt=overall_attempt, group_id=group_id)
                 last_err = exc
                 if _is_rate_limit(exc) and attempt < LLM_MAX_RETRIES:
                     delay = _retry_after_seconds(exc, attempt)
@@ -188,13 +198,24 @@ def call_llm(
     )
 
 
-def _extract_tokens(resp) -> int | None:
+def _extract_tokens(resp) -> tuple[int | None, int | None, int | None]:
+    """Returns (total, prompt, completion) tokens, each best-effort."""
     try:
         usage = resp["usage"]
-        if isinstance(usage, dict):
-            return usage.get("total_tokens")
-        return getattr(usage, "total_tokens", None)
+        get = usage.get if isinstance(usage, dict) else lambda k: getattr(usage, k, None)
+        return get("total_tokens"), get("prompt_tokens"), get("completion_tokens")
     except Exception:  # noqa: BLE001 — best-effort only, never breaks the call
+        return None, None, None
+
+
+def _extract_cost(resp) -> float | None:
+    """Best-effort USD cost via litellm's pricing table; silently absent for
+    models/providers litellm has no pricing data for."""
+    try:
+        import litellm
+        cost = litellm.completion_cost(completion_response=resp)
+        return round(cost, 6) if cost else None
+    except Exception:  # noqa: BLE001 — pricing lookups are best-effort only
         return None
 
 

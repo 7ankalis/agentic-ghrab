@@ -51,10 +51,25 @@ export default {
           "100%": { transform: "translateX(100%)" },
         },
         dash: { to: { strokeDashoffset: "-16" } },
+        "scan-x": {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(420%)" },
+        },
+        "ring-pulse": {
+          "0%,100%": { boxShadow: "0 0 0 0 rgba(85,161,133,0.35)" },
+          "50%": { boxShadow: "0 0 0 4px rgba(85,161,133,0)" },
+        },
+        "pop-in": {
+          "0%": { opacity: "0", transform: "translateY(10px) scale(0.98)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease both",
         "pulse-dot": "pulse-dot 1.8s ease-in-out infinite",
+        "scan-x": "scan-x 2.2s linear infinite",
+        "ring-pulse": "ring-pulse 2s ease-in-out infinite",
+        "pop-in": "pop-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
       },
     },
   },

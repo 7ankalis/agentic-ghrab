@@ -9,6 +9,11 @@ export interface LogEntry {
   event: "start" | "success" | "error";
   duration_ms: number | null;
   tokens: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  cost_usd: number | null;
+  attempt: number;
+  group_id: string;
   error: string | null;
   detail: string;
 }
