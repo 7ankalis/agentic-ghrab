@@ -140,3 +140,125 @@
   @apply border-line bg-surface-2 text-ink-muted hover:bg-surface-3;
   fill: currentColor;
 }
+.react-flow__minimap {
+  @apply overflow-hidden rounded-xl border border-line shadow-card;
+  background: rgb(var(--c-surface)) !important;
+}
+.react-flow__node {
+  /* let custom node shadows/popovers escape the node box */
+  overflow: visible;
+}
+
+/* ── Attack-graph node & edge motion ─────────────────────────────── */
+/* Flowing dashes along an active attack edge — reads as attacker traffic. */
+@keyframes ag-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+.ag-edge-flow {
+  stroke-dasharray: 5 5;
+  animation: ag-flow 0.55s linear infinite;
+}
+
+/* Concentric ping ring — used behind entry points (attacker beachhead). */
+@keyframes ag-ping {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.ag-ping {
+  animation: ag-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Node hover popover reveal. */
+.ag-pop {
+  transform-origin: top center;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+/* ── Node card: entrance + hover lift ──────────────────────────────── */
+/* NOTE: elements inside a react-flow node live under a CSS `transform`
+ * (the pane/node translate). `backdrop-filter` under a transformed ancestor
+ * triggers a Chromium repaint bug that paints the whole canvas white on hover,
+ * so nodes use solid/tinted fills and shadows only — never backdrop-blur. */
+@keyframes ag-node-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ag-node {
+  animation: ag-node-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ag-card {
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+  will-change: transform;
+}
+.ag-node:hover .ag-card {
+  transform: translateY(-3px);
+}
+
+/* Soft pulse for crown-jewel targets. Color comes from the --crown var. */
+@keyframes ag-crown {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--crown),
+      0 0 16px -4px var(--crown);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--crown),
+      0 0 26px 0px var(--crown);
+  }
+}
+.ag-crown {
+  animation: ag-crown 2.6s ease-in-out infinite;
+}
+
+/* Animated sweep along the accent bar of active / on-path nodes. */
+@keyframes ag-sweep {
+  to {
+    background-position: 200% 0;
+  }
+}
+.ag-accent-live {
+  background-size: 200% 100%;
+  animation: ag-sweep 1.6s linear infinite;
+}
+
+/* Floating hover inspector — rendered in the graph container, above the pane. */
+.ag-inspector {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-edge-flow,
+  .ag-ping,
+  .ag-node,
+  .ag-crown,
+  .ag-accent-live {
+    animation: none;
+  }
+  .ag-card {
+    transition: none;
+  }
+}

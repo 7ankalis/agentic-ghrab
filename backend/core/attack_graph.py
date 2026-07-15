@@ -126,6 +126,12 @@ def _resolve_host(name: str, assets: dict[str, str]) -> str | None:
     return None
 
 
+def _tier_key(hostname: str) -> str:
+    """Business-function token from an APP-*/DB-* hostname, e.g. 'APP-CRM01' -> 'CRM'."""
+    m = re.match(r"(?:APP|DB)-([A-Z]+)\d*$", hostname, re.I)
+    return m.group(1).upper() if m else hostname.upper()
+
+
 def build_host_nodes(df: pd.DataFrame, cmdb: CMDB,
                      caps: dict[int, Capability]) -> dict[str, HostNode]:
     zone_by_vlan = {z.vlan: z.name for z in cmdb.zones}
@@ -208,13 +214,17 @@ def build_graph(df: pd.DataFrame, cmdb: CMDB,
                 if a != b:
                     add_edge(a, b, "lateral", None, f"Lateral movement within {nodes[a].zone}")
 
-    # (2b) Base tier adjacency: application servers can reach the database tier
-    # (expected north-south flow the attacker rides once it holds an app host).
+    # (2b) Base tier adjacency: an app server can reach ITS OWN database, not the
+    # whole db tier — APP-CRM01 talks to DB-CRM01, not DB-TRADE01, even though both
+    # pairs sit in the same VLANs. Match by the business-function token in the
+    # hostname (CRM, TRADE, ...) so unrelated app/db pairs stay disconnected and
+    # noise hosts like APP-HR01 (no matching DB) don't get a fabricated edge.
     app_hosts = hosts_in_vlan.get("21", [])
     db_hosts = hosts_in_vlan.get("30", [])
     for a in app_hosts:
         for b in db_hosts:
-            add_edge(a, b, "lateral", None, "Application-tier → database-tier connectivity")
+            if _tier_key(a) == _tier_key(b):
+                add_edge(a, b, "lateral", None, "Application-tier → database-tier connectivity")
 
     # (3) Segmentation breaks: a finding opens a boundary between two VLANs
     for _, row in df.iterrows():

@@ -102,6 +102,47 @@ DEFAULT_AGENT_PROVIDER: dict[str, str] = {
 
 FALLBACK_ORDER = ["mistral", "groq", "gemini", "anthropic", "openai", "deepseek", "xai"]
 
+# --- Client-side rate limiting -------------------------------------------------
+# Free provider tiers cap requests-per-minute (Gemini flash ~15 RPM, Mistral free
+# ~1 RPS, Groq ~30 RPM). A full pipeline run fires ~6 calls back-to-back, which
+# trips those caps instantly. We therefore (a) space consecutive calls to the
+# SAME provider by a minimum interval, and (b) on a 429 we back off and retry the
+# same provider instead of immediately burning through the fallback chain (whose
+# providers are just as rate-limited). All tunable via env without a code change.
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+# Default minimum seconds between two requests to the same provider.
+LLM_MIN_INTERVAL_SEC = _env_float("LLM_MIN_INTERVAL_SEC", 4.0)
+# Per-provider overrides (seconds) — tuned to each free tier's RPM. Anything not
+# listed falls back to LLM_MIN_INTERVAL_SEC.
+PROVIDER_MIN_INTERVAL: dict[str, float] = {
+    "groq": _env_float("LLM_MIN_INTERVAL_GROQ", 2.5),      # ~30 RPM free
+    "gemini": _env_float("LLM_MIN_INTERVAL_GEMINI", 4.5),  # ~15 RPM free
+    "mistral": _env_float("LLM_MIN_INTERVAL_MISTRAL", 1.5),
+}
+# Retry the SAME provider this many times on a rate-limit (429) before falling
+# through to the next provider in the chain.
+LLM_MAX_RETRIES = _env_int("LLM_MAX_RETRIES", 4)
+# Exponential backoff base; wait = base * 2**attempt (capped), or Retry-After.
+LLM_BACKOFF_BASE_SEC = _env_float("LLM_BACKOFF_BASE_SEC", 5.0)
+LLM_BACKOFF_MAX_SEC = _env_float("LLM_BACKOFF_MAX_SEC", 60.0)
+
+
+def provider_min_interval(provider_key: str) -> float:
+    return PROVIDER_MIN_INTERVAL.get(provider_key, LLM_MIN_INTERVAL_SEC)
+
 AGENT_ROLE_LABELS = {
     "correlation": "Correlation Agent — cross-references CMDB, assets, ownership",
     "attack_path": "Attack Path Agent — reconstructs & explains attack chains",

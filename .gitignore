@@ -5,6 +5,8 @@ __pycache__/
 .env
 backend/data/cache/
 
+frontend/certs/
+
 # Node / frontend
 node_modules/
 frontend/dist/

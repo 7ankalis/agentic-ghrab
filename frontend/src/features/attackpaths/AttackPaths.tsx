@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { Component, useState, type ReactNode } from "react";
 import { ReactFlowProvider } from "reactflow";
-import { ChevronRight, Pause, Play, RotateCcw, Skull } from "lucide-react";
+import { ChevronRight, RefreshCw, Skull } from "lucide-react";
 import { useAttackPaths, useGraph } from "@/lib/hooks";
 import { EDGE_META, confidenceColor, cx } from "@/lib/format";
-import { AiBadge, AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
 import { downloadMarkdown, timestamp } from "@/lib/report";
 import { buildAttackPathsReport } from "@/lib/reportBuilders";
 import AttackGraph from "./AttackGraph";
@@ -104,25 +104,18 @@ export default function AttackPaths() {
         </div>
 
         {/* Graph canvas */}
-        <div className="relative h-[560px] overflow-hidden rounded-2xl border border-line bg-surface/40">
-          <ReactFlowProvider>
-            <AttackGraph graph={graph} selected={selected} replayStep={replay} />
-          </ReactFlowProvider>
-
-          {selected && (
-            <ReplayControls
-              steps={selected.steps.length}
-              replay={replay}
-              setReplay={setReplay}
-              onClose={() => select(null)}
-              label={`${selected.entry} → ${selected.target}`}
-            />
-          )}
-          {!selected && (
-            <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg border border-line bg-surface-2/90 px-3 py-2 text-xs text-ink-muted backdrop-blur">
-              Full attack surface · select a path to trace it
-            </div>
-          )}
+        <div className="relative h-[600px] overflow-hidden rounded-2xl border border-line bg-surface/40">
+          <GraphErrorBoundary>
+            <ReactFlowProvider>
+              <AttackGraph
+                graph={graph}
+                selected={selected}
+                replayStep={replay}
+                setReplayStep={setReplay}
+                onClearSelection={() => select(null)}
+              />
+            </ReactFlowProvider>
+          </GraphErrorBoundary>
         </div>
       </div>
 
@@ -159,40 +152,31 @@ export default function AttackPaths() {
   );
 }
 
-function ReplayControls({
-  steps, replay, setReplay, onClose, label,
-}: {
-  steps: number; replay: number; setReplay: (n: number) => void; onClose: () => void; label: string;
-}) {
-  const [playing, setPlaying] = useState(false);
+/** Keeps a rendering error inside the canvas from blanking the whole app —
+ *  shows a recoverable fallback with a remount button instead of a white page. */
+class GraphErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean; key: number }> {
+  state = { failed: false, key: 0 };
 
-  function play() {
-    setPlaying(true);
-    let i = 0;
-    setReplay(0);
-    const timer = setInterval(() => {
-      i += 1;
-      if (i >= steps) {
-        clearInterval(timer);
-        setPlaying(false);
-        setReplay(-1);
-      } else setReplay(i);
-    }, 900);
+  static getDerivedStateFromError() {
+    return { failed: true } as { failed: boolean };
   }
 
-  return (
-    <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-line-strong bg-surface-2/95 px-3 py-2 shadow-pop backdrop-blur">
-      <button
-        onClick={() => (playing ? setPlaying(false) : play())}
-        className="grid h-8 w-8 place-items-center rounded-lg bg-sage text-forest transition hover:bg-sage-bright"
-      >
-        {playing ? <Pause size={15} /> : <Play size={15} />}
-      </button>
-      <button onClick={() => setReplay(-1)} className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted hover:text-ink">
-        <RotateCcw size={14} />
-      </button>
-      <span className="px-1 text-xs font-medium text-ink">{label}</span>
-      <button onClick={onClose} className="ml-1 text-xs text-ink-faint hover:text-ink">clear</button>
-    </div>
-  );
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="grid h-full place-items-center p-6 text-center">
+          <div className="space-y-3">
+            <p className="text-sm text-ink-muted">The graph hit a rendering hiccup.</p>
+            <button
+              onClick={() => this.setState((s) => ({ failed: false, key: s.key + 1 }))}
+              className="btn-primary mx-auto !py-1.5 text-xs"
+            >
+              <RefreshCw size={13} /> Reload graph
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <div key={this.state.key} className="h-full w-full">{this.props.children}</div>;
+  }
 }
