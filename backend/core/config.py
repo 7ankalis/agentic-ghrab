@@ -23,16 +23,16 @@ DATA_DIR = ROOT_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# VULN_CSV_PATH = DATA_DIR / "ghrab_vulnerabilities_v2.csv"
-# ARCHITECTURE_MD_PATH = DATA_DIR / "ghrab_architecture_v2.md"
-# RISK_METHODOLOGY_MD_PATH = DATA_DIR / "ghrab_risk_methodology.md"
-# ANALYSIS_CACHE_PATH = CACHE_DIR / "analysis_cache.json"
-
-
-VULN_CSV_PATH = DATA_DIR / "velon_vulnerabilities.csv"
-ARCHITECTURE_MD_PATH = DATA_DIR / "velon_architecture.md"
+VULN_CSV_PATH = DATA_DIR / "ghrab_vulnerabilities_v2.csv"
+ARCHITECTURE_MD_PATH = DATA_DIR / "ghrab_architecture_v2.md"
 RISK_METHODOLOGY_MD_PATH = DATA_DIR / "ghrab_risk_methodology.md"
 ANALYSIS_CACHE_PATH = CACHE_DIR / "analysis_cache.json"
+
+
+# VULN_CSV_PATH = DATA_DIR / "velon_vulnerabilities.csv"
+# ARCHITECTURE_MD_PATH = DATA_DIR / "velon_architecture.md"
+# RISK_METHODOLOGY_MD_PATH = DATA_DIR / "ghrab_risk_methodology.md"
+# ANALYSIS_CACHE_PATH = CACHE_DIR / "analysis_cache.json"
 
 # Per-org framing for the LLM analyst persona (agents/base.py) — keyed off which
 # lab's CSV is currently active so agent narratives describe the right sector

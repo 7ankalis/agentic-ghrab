@@ -1,6 +1,5 @@
 import { Component, useState, type ReactNode } from "react";
-import { ReactFlowProvider } from "reactflow";
-import { ChevronRight, RefreshCw, Skull } from "lucide-react";
+import { ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Skull } from "lucide-react";
 import { useAttackPaths, useGraph } from "@/lib/hooks";
 import { EDGE_META, confidenceColor, cx } from "@/lib/format";
 import { AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
@@ -15,12 +14,13 @@ export default function AttackPaths() {
   const { data: graph, isLoading: lg } = useGraph();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replay, setReplay] = useState(-1);
+  const [railOpen, setRailOpen] = useState(true);
 
   if (lp || lg || !paths || !graph)
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-72" />
-        <div className="grid grid-cols-[300px_1fr] gap-4"><Skeleton className="h-[78vh] min-h-[640px]" /><Skeleton className="h-[78vh] min-h-[640px]" /></div>
+        <Skeleton className="h-[calc(100vh-220px)] min-h-[640px]" />
       </div>
     );
 
@@ -54,67 +54,83 @@ export default function AttackPaths() {
 
       {paths.ai_enabled && paths.summary && <AiCard label="Attack-Surface Synthesis">{paths.summary}</AiCard>}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]">
-        {/* Ranked path list */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between px-1">
-            <span className="label">{paths.paths.length} Discovered Paths</span>
-            <span className="text-[11px] text-ink-faint">ranked by risk</span>
-          </div>
-          <div className="max-h-[78vh] min-h-[640px] space-y-2.5 overflow-y-auto pr-1">
-            {paths.paths.map((p, i) => (
-              <button
-                key={p.path_id}
-                onClick={() => select(selectedId === p.path_id ? null : p)}
-                className={cx(
-                  "w-full rounded-xl border p-3 text-left transition",
-                  selectedId === p.path_id
-                    ? "border-sage/50 bg-sage/[0.08] shadow-glow"
-                    : "border-line bg-surface-2/50 hover:border-line-strong",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-5 w-5 place-items-center rounded bg-surface-3 font-mono text-[10px] text-ink-muted">{i + 1}</span>
-                    <span className="font-mono text-xs text-sage-bright">{p.path_id}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {p.confidence && (
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: confidenceColor(p.confidence) }} title={`confidence: ${p.confidence}`} />
+      {/* Graph canvas — dominant element, with a collapsible ranked-path rail */}
+      <div className="relative flex h-[calc(100vh-220px)] min-h-[640px] gap-0 overflow-hidden rounded-2xl border border-line bg-surface/40">
+        <div className={cx("flex shrink-0 flex-col border-r border-line bg-surface/60 transition-[width] duration-200", railOpen ? "w-[300px]" : "w-0")}>
+          {railOpen && (
+            <>
+              <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
+                <div>
+                  <span className="label block">{paths.paths.length} Discovered Paths</span>
+                  <span className="text-[10px] text-ink-faint">ranked by risk</span>
+                </div>
+                <button onClick={() => setRailOpen(false)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-faint hover:bg-surface-3 hover:text-ink" title="Collapse path list">
+                  <ChevronsLeft size={14} />
+                </button>
+              </div>
+              <div className="flex-1 space-y-2 overflow-y-auto p-2.5">
+                {paths.paths.map((p, i) => (
+                  <button
+                    key={p.path_id}
+                    onClick={() => select(selectedId === p.path_id ? null : p)}
+                    className={cx(
+                      "w-full rounded-xl border p-3 text-left transition",
+                      selectedId === p.path_id
+                        ? "border-sage/50 bg-sage/[0.08] shadow-glow"
+                        : "border-line bg-surface-2/50 hover:border-line-strong",
                     )}
-                    <span className="font-mono text-[11px] text-ink-faint">{p.score}</span>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 text-sm">
-                  <span className="font-medium text-ink">{p.entry}</span>
-                  <ChevronRight size={13} className="text-ink-faint" />
-                  <span className="truncate font-medium text-purple">{p.target}</span>
-                </div>
-                {p.headline && <p className="mt-1.5 line-clamp-2 text-xs text-ink-muted">{p.headline}</p>}
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] text-ink-faint">{p.length} hops</span>
-                  {p.novelty && p.novelty !== "textbook" && (
-                    <Tag color={p.novelty === "non-obvious" ? "rgb(var(--c-immediate))" : "rgb(var(--c-act))"}>{p.novelty}</Tag>
-                  )}
-                  {p.max_grs >= 80 && <Tag color="rgb(var(--c-immediate))">peak {p.max_grs}</Tag>}
-                </div>
-              </button>
-            ))}
-          </div>
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-5 w-5 place-items-center rounded bg-surface-3 font-mono text-[10px] text-ink-muted">{i + 1}</span>
+                        <span className="font-mono text-xs text-sage-bright">{p.path_id}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {p.confidence && (
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: confidenceColor(p.confidence) }} title={`confidence: ${p.confidence}`} />
+                        )}
+                        <span className="font-mono text-[11px] text-ink-faint">{p.score}</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 text-sm">
+                      <span className="font-medium text-ink">{p.entry}</span>
+                      <ChevronRight size={13} className="text-ink-faint" />
+                      <span className="truncate font-medium text-purple">{p.target}</span>
+                    </div>
+                    {p.headline && <p className="mt-1.5 line-clamp-2 text-xs text-ink-muted">{p.headline}</p>}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] text-ink-faint">{p.length} hops</span>
+                      {p.novelty && p.novelty !== "textbook" && (
+                        <Tag color={p.novelty === "non-obvious" ? "rgb(var(--c-immediate))" : "rgb(var(--c-act))"}>{p.novelty}</Tag>
+                      )}
+                      {p.max_grs >= 80 && <Tag color="rgb(var(--c-immediate))">peak {p.max_grs}</Tag>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Graph canvas */}
-        <div className="relative h-[78vh] min-h-[640px] overflow-hidden rounded-2xl border border-line bg-surface/40">
+        {!railOpen && (
+          <button
+            onClick={() => setRailOpen(true)}
+            className="absolute left-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-line bg-surface/90 px-2 py-1.5 text-[11px] font-semibold text-ink-muted shadow-card backdrop-blur-md hover:text-ink"
+            title="Show ranked path list"
+          >
+            <ChevronsRight size={14} /> {paths.paths.length} Paths
+          </button>
+        )}
+
+        <div className="relative min-w-0 flex-1">
           <GraphErrorBoundary>
-            <ReactFlowProvider>
-              <AttackGraph
-                graph={graph}
-                selected={selected}
-                replayStep={replay}
-                setReplayStep={setReplay}
-                onClearSelection={() => select(null)}
-              />
-            </ReactFlowProvider>
+            <AttackGraph
+              graph={graph}
+              selected={selected}
+              replayStep={replay}
+              setReplayStep={setReplay}
+              onClearSelection={() => select(null)}
+            />
           </GraphErrorBoundary>
         </div>
       </div>

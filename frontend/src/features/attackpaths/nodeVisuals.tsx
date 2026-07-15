@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   AppWindow, Archive, Banknote, Cloud, Database, Fingerprint, Gem, Globe,
   HardDrive, KeyRound, Landmark, Monitor, Network, Radio, Router, Server,
@@ -31,3 +33,18 @@ export function roleIcon(role = "", hostname = "", kind = "asset"): LucideIcon {
 }
 
 export { Gem, Radio, KeyRound, Server };
+
+/** Rasterizes a lucide icon to an SVG data-URI, tinted `color`, for use as a
+ *  Cytoscape node `background-image` — canvas nodes can't host React elements,
+ *  so the glyph has to be baked into a bitmap-ish source once and cached. */
+const iconUriCache = new Map<string, string>();
+
+export function iconDataUri(Icon: LucideIcon, color: string): string {
+  const key = `${Icon.displayName ?? Icon.name}__${color}`;
+  const cached = iconUriCache.get(key);
+  if (cached) return cached;
+  const markup = renderToStaticMarkup(createElement(Icon, { color, strokeWidth: 2, size: 24 }));
+  const uri = `data:image/svg+xml;utf8,${encodeURIComponent(markup)}`;
+  iconUriCache.set(key, uri);
+  return uri;
+}

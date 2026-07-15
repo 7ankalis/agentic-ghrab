@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AgentLogProvider } from "./lib/agentLog";
-import "reactflow/dist/style.css";
 import "./index.css";
 
 const queryClient = new QueryClient({
