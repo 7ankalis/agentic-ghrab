@@ -6,9 +6,18 @@ blast-radius (TCM) and exposure tier are all derived from the CSV + the
 architecture doc's own asset/team/attack-path tables, not guessed by an LLM.
 This is deliberately the trust anchor of the whole platform: LLM agents may
 *explain* a GRS, they never compute or override it.
+
+FINDING_FACTORS/EPSS_BY_CVE/KEV_CVES are hand-enriched per finding, so they are
+keyed by QID/CVE and hold entries for every lab dataset the platform ships with
+(currently Ghrab Financial Group and Velon Health Systems). QID and CVE
+namespaces don't collide across labs, so the tables are simply unioned rather
+than switched on the active tenant — compute_grs() has no notion of "which lab"
+it's scoring, only "which QID/CVE". Adding a new lab means adding its rows here,
+derived from that lab's own architecture.md attack-path/CI tables.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
@@ -28,11 +37,19 @@ EXPOSURE_TIERS = {
     "isolated": 0.15,
 }
 
-# KEV = CISA Known Exploited Vulnerabilities catalog membership (binary gate)
+# KEV = CISA Known Exploited Vulnerabilities catalog membership (binary gate).
+# Ghrab CVEs first, Velon CVEs below — namespaces don't collide.
 KEV_CVES = {
     "CVE-2017-0144", "CVE-2020-1472", "CVE-2021-44228", "CVE-2019-0708",
     "CVE-2021-34473", "CVE-2018-13379", "CVE-2021-21972", "CVE-2023-23397",
     "CVE-2017-5638",
+    # Velon Health Systems
+    "CVE-2021-34527",  # PrintNightmare
+    "CVE-2018-7600",   # Drupalgeddon2
+    "CVE-2020-14882",  # Oracle WebLogic RCE
+    "CVE-2022-40684",  # FortiOS auth bypass
+    "CVE-2021-22005",  # vCenter arbitrary file upload RCE
+    "CVE-2022-22965",  # Spring4Shell
 }
 
 # Representative EPSS probabilities (0-1). See methodology §10 caveat: pull
@@ -42,7 +59,26 @@ EPSS_BY_CVE = {
     "CVE-2019-0708": 0.90, "CVE-2021-34473": 0.94, "CVE-2018-13379": 0.93,
     "CVE-2021-21972": 0.85, "CVE-2023-23397": 0.60, "CVE-2017-5638": 0.92,
     "CVE-2023-30777": 0.35,
+    # Velon Health Systems
+    "CVE-2021-34527": 0.94,  # PrintNightmare
+    "CVE-2018-7600": 0.94,   # Drupalgeddon2
+    "CVE-2020-14882": 0.94,  # Oracle WebLogic RCE
+    "CVE-2022-40684": 0.93,  # FortiOS auth bypass
+    "CVE-2021-22005": 0.92,  # vCenter arbitrary file upload RCE
+    "CVE-2020-0796": 0.40,   # SMBGhost — wormable but no confirmed mass ITW
+    "CVE-2021-42278": 0.85,  # noPac (sAMAccountName spoofing)
+    "CVE-2019-12255": 0.15,  # VxWorks URGENT/11 IPnet — niche OT/IoT exposure
+    "CVE-2022-22965": 0.94,  # Spring4Shell
 }
+
+# The CSV's CVE_ID column sometimes holds more than a bare CVE ("CVE-x (chained)",
+# "CVE-a / CVE-b") — pull out the first CVE token so KEV/EPSS lookups still hit.
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}")
+
+
+def _normalize_cve(cve_id: str) -> str:
+    match = _CVE_RE.search(cve_id)
+    return match.group(0) if match else cve_id
 
 # QID -> (exposure_tier_key, ACW 0-1, TCM 0-10, is_dora_cif)
 FINDING_FACTORS: dict[int, tuple[str, float, int, bool]] = {
@@ -78,6 +114,46 @@ FINDING_FACTORS: dict[int, tuple[str, float, int, bool]] = {
     200788: ("adjacent", 0.75, 6, False),      # Standalone: excessive Entra Global Admin
     43602:  ("internal", 0.35, 3, False),      # Standalone: Outlook NTLM leak
     200812: ("adjacent", 1.00, 7, True),       # Standalone: CDE segmentation gap
+
+    # --- Velon Health Systems (velon_vulnerabilities.csv / velon_architecture.md) ---
+    # ACW derived from each finding's primary CI's criticality tier in
+    # velon_architecture.md §1.2-§1.4 (Crown Jewel=1.0, High=0.75-0.8,
+    # Business-Important=0.6, Standard=0.35). TCM derived from position in the
+    # §6 attack-path chains (terminus = highest). is_cif=True marks HIPAA/FDA
+    # critical-function scope: EHR, Clinical/Biomed life-safety systems, the AD
+    # backbone (DC01), and systems that chain directly into them.
+    110001: ("adjacent", 0.35, 3, False),      # A1 guest WiFi trunk -> corp LAN
+    46587:  ("internal", 0.35, 4, False),      # A2 PrintNightmare on PRINT01
+    91022:  ("internal", 0.60, 4, False),      # A3 local admin reuse -> FILESRV01
+    150401: ("internal", 0.60, 5, False),      # A4 patient-scheduling share exposure
+    12055:  ("internet_facing", 0.60, 6, False),  # B1 Drupalgeddon2 on PORTAL01
+    12061:  ("internet_facing", 0.60, 6, False),  # B2 webshell upload
+    200901: ("adjacent", 0.60, 7, False),      # B3 DMZ->AppTier ANY-ANY
+    20144:  ("internal", 1.00, 8, True),       # B4 WebLogic RCE on EHR-APP01 (crown jewel)
+    200933: ("internal", 1.00, 9, True),       # B5 db_owner excessive -> DB-EHR01 (crown jewel)
+    300201: ("internet_facing", 0.60, 5, False),  # C1 public blob container
+    300214: ("adjacent", 0.75, 7, False),      # C2 Azure SP subscription Owner
+    300228: ("internet_facing", 0.75, 8, True),   # C3 public claims-db weak password
+    46840:  ("internet_facing", 0.60, 5, False),  # D1 FortiOS auth bypass
+    200955: ("adjacent", 0.60, 6, False),      # D2 VPN split-tunnel to mgmt VLAN
+    91145:  ("isolated", 0.75, 7, False),      # D3 cached DA creds on JUMP01
+    46912:  ("isolated", 0.80, 9, True),       # D4 vCenter RCE (hosts EHR-APP01/DB-EHR01)
+    200977: ("isolated", 0.75, 8, True),       # D5 Veeam default creds (backs up DB-EHR01)
+    91260:  ("internal", 1.00, 7, True),       # E1 Kerberoastable svc_clinical on DC01
+    91278:  ("internal", 1.00, 9, True),       # E2 noPac on DC01
+    200999: ("internal", 1.00, 9, True),       # E3 flat trust corp -> clinical zone
+    400012: ("internal", 1.00, 10, True),      # E4 VxWorks IPnet RCE on INFUSION-GW01
+    201011: ("internal", 1.00, 10, True),      # E5 shared clinical-admin cred -> pharmacy
+    150455: ("internal", 0.75, 7, True),       # F1 Spring4Shell on TELEHEALTH-APP01
+    201033: ("internal", 0.75, 7, True),       # F2 telehealth service running as SYSTEM
+    150467: ("internal", 0.75, 8, True),       # F3 hardcoded DB creds in telehealth config
+    201055: ("internal", 0.85, 9, True),       # F4 excessive DB link -> DB-EHR01
+    110102: ("restricted", 0.75, 2, False),    # Standalone: anonymous SMB on IMAGING-NAS01
+    201077: ("internal", 0.35, 1, False),      # Standalone: any-any on CLINIC-RTR01
+    48113:  ("internal", 0.35, 3, False),      # Standalone: SMBGhost on WKS-CLIN01
+    300251: ("adjacent", 0.75, 6, False),      # Standalone: excessive Entra Global Admin
+    12078:  ("internet_facing", 0.60, 2, False),  # Standalone: portal admin console missing MFA
+    201099: ("adjacent", 1.00, 7, True),       # Standalone: clinical zone segmentation gap
 }
 
 ACTION_BANDS = [
@@ -111,8 +187,9 @@ def compute_grs(qid: int, cvss: float, cve_id: str) -> GRSResult:
     exposure_key, acw, tcm, is_cif = FINDING_FACTORS.get(
         qid, ("internal", 0.5, 3, False)
     )
-    epss = EPSS_BY_CVE.get(cve_id, 0.0)
-    kev = cve_id in KEV_CVES
+    cve_key = _normalize_cve(cve_id)
+    epss = EPSS_BY_CVE.get(cve_key, 0.0)
+    kev = cve_key in KEV_CVES
     ccf = 1.0  # no verified compensating controls exist in this environment (methodology §6)
 
     cvss_norm = cvss

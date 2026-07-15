@@ -88,6 +88,21 @@ class CMDB:
     def load(self, path=ARCHITECTURE_MD_PATH) -> "CMDB":
         text = path.read_text(encoding="utf-8")
         self.raw_markdown = text
+        # Two known doc shapes: the legacy "## 3. Asset Inventory" prose-table
+        # format, and the newer CI-based "## 1. CI Inventory" ServiceNow-style
+        # format (CI ID / Rule ID / Relationship ID cross-referenced). Detect
+        # which one this file is rather than assuming — a silent parser/format
+        # mismatch here means zones+assets+teams all come back empty, which
+        # starves every downstream agent (deterministic graph AND the LLM
+        # layer) of grounding without raising any error.
+        if re.search(r"^##\s*1\.\s*CI Inventory", text, re.M):
+            self._load_ci_format(text)
+        else:
+            self._load_legacy_format(text)
+        self._link_assets_to_zones()
+        return self
+
+    def _load_legacy_format(self, text: str) -> None:
         tables = _parse_markdown_tables(text)
 
         for table in tables:
@@ -116,8 +131,136 @@ class CMDB:
 
         self._parse_assets_with_zones(text)
         self._parse_attack_paths(text)
-        self._link_assets_to_zones()
-        return self
+
+    # -- CI-based format (§1 CI Inventory / §3 Rule Base / §6 Attack Paths) ----
+
+    def _section(self, text: str, start_pat: str, end_pat: str) -> str | None:
+        m = re.search(f"{start_pat}.*?(?={end_pat}|\\Z)", text, re.S)
+        return m.group(0) if m else None
+
+    def _load_ci_format(self, text: str) -> None:
+        # CI ID -> (vlan number as string, human zone name), built from the
+        # Network Segments table so server/cloud rows (which only cite a Zone
+        # CI ID) can be resolved to the vlan numbers attack_graph.py keys off.
+        zone_map: dict[str, tuple[str, str]] = {}
+        seg = self._section(text, r"### 1\.1 Network Segments", r"\n###\s")
+        if seg:
+            for table in _parse_markdown_tables(seg):
+                if not table or "name" not in [h.lower() for h in table[0]]:
+                    continue
+                header = [h.lower() for h in table[0]]
+                for r in table[1:]:
+                    d = dict(zip(header, r))
+                    ci_id, name = d.get("ci id", "").strip(), d.get("name", "").strip()
+                    if not ci_id or not name:
+                        continue
+                    vlan_m = re.search(r"VLAN\s*(\d+)", name, re.I)
+                    if vlan_m:
+                        vlan = vlan_m.group(1)
+                        zone_name = re.sub(r"^VLAN\s*\d+\s*—\s*", "", name).strip()
+                    elif "cloud" in name.lower():
+                        vlan, zone_name = "Cloud", name
+                    elif "internet" in name.lower():
+                        vlan, zone_name = "INTERNET", name
+                    else:
+                        vlan, zone_name = "", name
+                    zone_map[ci_id] = (vlan, zone_name)
+                    self.zones.append(Zone(
+                        vlan=vlan, name=zone_name, cidr=d.get("cidr", ""), purpose="",
+                        trust_level=d.get("trust level", ""),
+                        owning_team=d.get("owning support group", ""),
+                    ))
+
+        team_assets: dict[str, list[str]] = {}
+
+        srv = self._section(text, r"### 1\.2 Servers", r"\n###\s")
+        if srv:
+            for table in _parse_markdown_tables(srv):
+                if not table or "name" not in [h.lower() for h in table[0]]:
+                    continue
+                header = [h.lower() for h in table[0]]
+                for r in table[1:]:
+                    d = dict(zip(header, r))
+                    hostname = d.get("name", "").strip().strip("`")
+                    if not hostname:
+                        continue
+                    vlan, zone_name = zone_map.get(d.get("zone", "").strip(), ("", ""))
+                    self.assets.append(Asset(
+                        hostname=hostname, ip=d.get("ip", ""), role=d.get("platform", ""),
+                        notable_issue=d.get("criticality", ""), vlan=vlan, zone_name=zone_name,
+                    ))
+                    grp = d.get("support group", "").strip()
+                    if grp:
+                        team_assets.setdefault(grp, []).append(hostname)
+
+        cloud = self._section(text, r"### 1\.4 Cloud Services", r"\n###\s")
+        if cloud:
+            for table in _parse_markdown_tables(cloud):
+                if not table or "name" not in [h.lower() for h in table[0]]:
+                    continue
+                header = [h.lower() for h in table[0]]
+                for r in table[1:]:
+                    d = dict(zip(header, r))
+                    # cloud CI names are "Blob: velon-imaging-archive" etc — the CSV
+                    # Hostname column carries only the resource name after the colon.
+                    hostname = d.get("name", "").split(": ", 1)[-1].strip().strip("`")
+                    if not hostname:
+                        continue
+                    self.assets.append(Asset(
+                        hostname=hostname, ip="", role=d.get("type", ""),
+                        notable_issue=d.get("criticality", ""), vlan="Cloud", zone_name="Cloud",
+                    ))
+                    grp = d.get("support group", "").strip()
+                    if grp:
+                        team_assets.setdefault(grp, []).append(hostname)
+
+        grp = self._section(text, r"### 1\.7 Support Groups", r"\n##\s")
+        if grp:
+            for table in _parse_markdown_tables(grp):
+                if not table or "name" not in [h.lower() for h in table[0]]:
+                    continue
+                header = [h.lower() for h in table[0]]
+                for r in table[1:]:
+                    d = dict(zip(header, r))
+                    name = d.get("name", "").strip()
+                    group_id = d.get("group id", "").strip()
+                    if not name:
+                        continue
+                    self.teams.append(Team(
+                        name=name, responsible_for=d.get("responsible for", ""),
+                        example_assets=", ".join(team_assets.get(group_id, [])),
+                    ))
+
+        self._parse_ci_attack_paths(text)
+
+    def _parse_ci_attack_paths(self, text: str) -> None:
+        section = self._section(text, r"## 6\. Attack Paths", r"\n## 7\.")
+        if not section:
+            return
+        for block in re.split(r"(?=### PATH )", section):
+            m = re.match(r"### (PATH [A-Z]) — (\w[\w/]*): (.+)", block)
+            if not m:
+                continue
+            path_letter, difficulty, title = m.groups()
+            steps: list[str] = []
+            for table in _parse_markdown_tables(block):
+                header = [h.lower() for h in table[0]] if table else []
+                if "step" not in header:
+                    continue
+                for r in table[1:]:
+                    d = dict(zip(header, r))
+                    enabler = d.get("enabler (type: ref id)", d.get("enabler", ""))
+                    steps.append(
+                        f"{d.get('step', '')}: {d.get('source ci', '')} "
+                        f"--[{enabler}]--> {d.get('target ci', '')} "
+                        f"(QID {d.get('finding qid', '')}) => {d.get('access gained', '')}"
+                    )
+            impact_m = re.search(r"\*\*Impact:\*\*\s*(.+)", block)
+            self.attack_paths.append(AttackPath(
+                path_id="PATH-" + path_letter.split()[-1], title=title.strip(),
+                difficulty=difficulty.strip(), steps=steps,
+                impact=impact_m.group(1).strip() if impact_m else "",
+            ))
 
     def _parse_assets_with_zones(self, text: str) -> None:
         """Parse the §3 asset inventory, tracking each `### 3.x Zone (VLAN n)`

@@ -29,7 +29,31 @@ def compliance_summary(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> dict
         "'executive_summary' (3-4 sentences an auditor or board member could read)."
     )
     try:
-        return ask_json("compliance", task, context, session_state=session_state, max_tokens=1800,
-                        detail="compliance posture briefing")
+        result = ask_json("compliance", task, context, session_state=session_state, max_tokens=1800,
+                          detail="compliance posture briefing")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
+
+    known_qids = {int(q) for q in df["QID"]}
+    gaps = result.get("key_gaps", [])
+    verified, dropped = [], 0
+    for gap in gaps:
+        refs = []
+        for q in gap.get("finding_refs", []):
+            try:
+                q = int(q)
+            except (TypeError, ValueError):
+                continue
+            if q in known_qids:
+                refs.append(q)
+        if not refs:
+            # Every QID the model cited for this gap was fabricated — the gap
+            # itself has no grounding, so don't present it as fact.
+            dropped += 1
+            continue
+        gap["finding_refs"] = refs
+        verified.append(gap)
+    result["key_gaps"] = verified
+    if dropped:
+        result["dropped_key_gaps"] = dropped
+    return result

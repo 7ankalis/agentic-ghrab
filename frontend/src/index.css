@@ -150,46 +150,22 @@
 }
 
 /* ── Attack-graph node & edge motion ─────────────────────────────── */
-/* Flowing dashes along an active attack edge — reads as attacker traffic. */
-@keyframes ag-flow {
-  to {
-    stroke-dashoffset: -22;
-  }
+/* IMPORTANT: everything inside a react-flow node/edge lives under a CSS
+ * `transform` (the pane pan/zoom). Two Chromium repaint bugs live here and
+ * both blank the whole canvas white on hover until reload:
+ *   1. `backdrop-filter` / `filter` under a transformed ancestor.
+ *   2. Continuously-*looping* animations of non-composited properties
+ *      (box-shadow, background-position) under that same ancestor, which
+ *      force a full main-thread repaint every frame indefinitely.
+ * A prior rework introduced (2) via a crown-jewel box-shadow pulse, an
+ * accent-bar background-position sweep, and looping ping rings — removed
+ * below. Rule: no `filter`/`backdrop-filter` and no *infinite* keyframe
+ * animation may target a react-flow node/edge or its descendants. A
+ * one-shot, finite entrance animation (ag-node-in) is fine — it runs once
+ * and stops, so it can't accumulate repaint load. */
+.ag-node {
+  animation: ag-node-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.ag-edge-flow {
-  stroke-dasharray: 5 5;
-  animation: ag-flow 0.55s linear infinite;
-}
-
-/* Concentric ping ring — used behind entry points (attacker beachhead). */
-@keyframes ag-ping {
-  0% {
-    transform: scale(0.75);
-    opacity: 0.55;
-  }
-  70%,
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-}
-.ag-ping {
-  animation: ag-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-/* Node hover popover reveal. */
-.ag-pop {
-  transform-origin: top center;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-}
-
-/* ── Node card: entrance + hover lift ──────────────────────────────── */
-/* NOTE: elements inside a react-flow node live under a CSS `transform`
- * (the pane/node translate). `backdrop-filter` under a transformed ancestor
- * triggers a Chromium repaint bug that paints the whole canvas white on hover,
- * so nodes use solid/tinted fills and shadows only — never backdrop-blur. */
 @keyframes ag-node-in {
   from {
     opacity: 0;
@@ -200,47 +176,14 @@
     transform: translateY(0) scale(1);
   }
 }
-.ag-node {
-  animation: ag-node-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
 .ag-card {
   transition:
     transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.18s ease,
     border-color 0.18s ease;
-  will-change: transform;
 }
 .ag-node:hover .ag-card {
   transform: translateY(-3px);
-}
-
-/* Soft pulse for crown-jewel targets. Color comes from the --crown var. */
-@keyframes ag-crown {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px var(--crown),
-      0 0 16px -4px var(--crown);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px var(--crown),
-      0 0 26px 0px var(--crown);
-  }
-}
-.ag-crown {
-  animation: ag-crown 2.6s ease-in-out infinite;
-}
-
-/* Animated sweep along the accent bar of active / on-path nodes. */
-@keyframes ag-sweep {
-  to {
-    background-position: 200% 0;
-  }
-}
-.ag-accent-live {
-  background-size: 200% 100%;
-  animation: ag-sweep 1.6s linear infinite;
 }
 
 /* Floating hover inspector — rendered in the graph container, above the pane. */
@@ -251,11 +194,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ag-edge-flow,
-  .ag-ping,
-  .ag-node,
-  .ag-crown,
-  .ag-accent-live {
+  .ag-node {
     animation: none;
   }
   .ag-card {

@@ -115,7 +115,10 @@ def run_pipeline(session_state=None, force_refresh: bool = False,
         report(f"Compliance Agent — provider error: {result.compliance['error']}", "warn")
 
     report("Triage Agent: drafting executive synthesis…")
-    result.executive_summary = executive_synthesis(df, cmdb, session_state)
+    result.executive_summary = executive_synthesis(
+        df, cmdb, session_state,
+        discovery=result.discovery, correlation=result.correlation, compliance=result.compliance,
+    )
     if result.executive_summary.startswith("AI executive synthesis unavailable"):
         report(f"Triage Agent — provider error: {result.executive_summary}", "warn")
 

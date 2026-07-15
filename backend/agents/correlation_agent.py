@@ -33,7 +33,25 @@ def find_toxic_combinations(df: pd.DataFrame, cmdb: CMDB, session_state=None) ->
         "'reprioritization_flags' (list of {qid, hostname, reason})."
     )
     try:
-        return ask_json("correlation", task, context, session_state=session_state, max_tokens=1800,
-                        detail="cross-reference findings, assets & teams")
+        result = ask_json("correlation", task, context, session_state=session_state, max_tokens=1800,
+                          detail="cross-reference findings, assets & teams")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
+
+    known_qids = {int(q) for q in df["QID"]}
+    flags = result.get("reprioritization_flags", [])
+    verified, dropped = [], 0
+    for flag in flags:
+        try:
+            qid = int(flag.get("qid"))
+        except (TypeError, ValueError):
+            qid = None
+        if qid not in known_qids:
+            # Never surface a "mis-prioritized finding" that doesn't exist.
+            dropped += 1
+            continue
+        verified.append(flag)
+    result["reprioritization_flags"] = verified
+    if dropped:
+        result["dropped_reprioritization_flags"] = dropped
+    return result

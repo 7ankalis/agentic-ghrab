@@ -20,7 +20,7 @@ export default function AttackPaths() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-72" />
-        <div className="grid grid-cols-[360px_1fr] gap-4"><Skeleton className="h-[560px]" /><Skeleton className="h-[560px]" /></div>
+        <div className="grid grid-cols-[300px_1fr] gap-4"><Skeleton className="h-[78vh] min-h-[640px]" /><Skeleton className="h-[78vh] min-h-[640px]" /></div>
       </div>
     );
 
@@ -54,14 +54,14 @@ export default function AttackPaths() {
 
       {paths.ai_enabled && paths.summary && <AiCard label="Attack-Surface Synthesis">{paths.summary}</AiCard>}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]">
         {/* Ranked path list */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <span className="label">{paths.paths.length} Discovered Paths</span>
             <span className="text-[11px] text-ink-faint">ranked by risk</span>
           </div>
-          <div className="max-h-[560px] space-y-2.5 overflow-y-auto pr-1">
+          <div className="max-h-[78vh] min-h-[640px] space-y-2.5 overflow-y-auto pr-1">
             {paths.paths.map((p, i) => (
               <button
                 key={p.path_id}
@@ -104,7 +104,7 @@ export default function AttackPaths() {
         </div>
 
         {/* Graph canvas */}
-        <div className="relative h-[600px] overflow-hidden rounded-2xl border border-line bg-surface/40">
+        <div className="relative h-[78vh] min-h-[640px] overflow-hidden rounded-2xl border border-line bg-surface/40">
           <GraphErrorBoundary>
             <ReactFlowProvider>
               <AttackGraph

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ReactFlow, {
   Background, BackgroundVariant, BaseEdge, EdgeLabelRenderer, Handle,
   MarkerType, MiniMap, Panel, Position, getBezierPath, useReactFlow,
@@ -47,14 +47,15 @@ function nodeColor(d: { crown: boolean; grs: number }): string {
   return d.grs > 0 ? bandColor(bandForGrs(d.grs)) : "rgb(var(--c-ink-faint))";
 }
 
-function AssetNode({ data }: NodeProps<NodeData>) {
+const AssetNode = memo(function AssetNode({ data }: NodeProps<NodeData>) {
   if (data.kind === "internet") {
     return (
       <div className={cx("ag-node relative flex flex-col items-center gap-1 transition-opacity", data.dim && "opacity-25")}>
         <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-immediate" />
         <div className="relative grid h-16 w-16 place-items-center">
-          <span className="ag-ping absolute inset-0 rounded-full border border-immediate/50" />
-          <span className="ag-ping absolute inset-0 rounded-full border border-immediate/40" style={{ animationDelay: "1.1s" }} />
+          {/* static double ring — no looping animation, see index.css note above */}
+          <span className="absolute inset-0 rounded-full border border-immediate/30" />
+          <span className="absolute inset-[3px] rounded-full border border-immediate/20" />
           <div className="relative grid h-14 w-14 place-items-center rounded-full border-2 border-immediate/70 bg-immediate/15 text-immediate shadow-glow">
             <Waypoints size={22} />
           </div>
@@ -76,18 +77,15 @@ function AssetNode({ data }: NodeProps<NodeData>) {
       <div
         className={cx(
           "ag-card relative min-w-[186px] max-w-[210px] overflow-hidden rounded-xl border bg-surface-2",
-          lit ? "shadow-glow" : "shadow-card group-hover:shadow-pop",
-          data.crown && "ag-crown",
+          (lit || data.crown) ? "shadow-glow" : "shadow-card group-hover:shadow-pop",
         )}
         style={{
           borderColor: data.crown || lit || data.match ? color : "rgb(var(--c-line-strong))",
-          // @ts-expect-error — CSS custom property for the crown pulse keyframe
-          "--crown": color,
         }}
       >
-        {/* risk-band accent bar */}
+        {/* risk-band accent bar — static, no looping animation (see index.css note) */}
         <div
-          className={cx("absolute inset-x-0 top-0 h-[3px]", lit && "ag-accent-live")}
+          className="absolute inset-x-0 top-0 h-[3px]"
           style={{
             background: lit
               ? `linear-gradient(90deg, transparent, ${color}, transparent)`
@@ -171,11 +169,11 @@ function AssetNode({ data }: NodeProps<NodeData>) {
       </div>
     </div>
   );
-}
+});
 
 // ── Edge ──────────────────────────────────────────────────────────────────
 
-function AttackEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }: EdgeProps<EdgeData>) {
+const AttackEdge = memo(function AttackEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }: EdgeProps<EdgeData>) {
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.28 });
   const meta = EDGE_META[data?.kind ?? "lateral"] ?? EDGE_META.lateral;
   const onPath = data?.onPath;
@@ -191,10 +189,8 @@ function AttackEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, target
         style={{
           stroke,
           strokeWidth: onPath ? 2.6 : 1.4,
-          strokeDasharray: onPath && revealed ? "5 5" : meta.dashed ? "5 4" : undefined,
-          animation: onPath && revealed ? "ag-flow 0.55s linear infinite" : undefined,
+          strokeDasharray: !(onPath && revealed) && meta.dashed ? "5 4" : undefined,
           opacity,
-          filter: onPath && revealed ? `drop-shadow(0 0 5px ${meta.color})` : undefined,
         }}
       />
       {data?.showLabel && onPath && !data?.dim && data?.label && (
@@ -214,7 +210,7 @@ function AttackEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, target
       )}
     </>
   );
-}
+});
 
 const nodeTypes = { asset: AssetNode };
 const edgeTypes = { attack: AttackEdge };
@@ -253,8 +249,8 @@ function layoutFlow(graph: GraphPayload): Map<string, { x: number; y: number }> 
     layers.get(l)!.push(n.id);
   });
   const pos = new Map<string, { x: number; y: number }>();
-  const GAP = 158;   // > card height, so vertically-stacked nodes never overlap
-  const COL = 360;   // > card width + margin
+  const GAP = 182;   // > card height, so vertically-stacked nodes never overlap
+  const COL = 400;   // > card width + margin
   layers.forEach((ids, l) => {
     ids.sort((a, b) => {
       const na = byId.get(a)!, nb = byId.get(b)!;
@@ -279,9 +275,9 @@ function layoutZones(graph: GraphPayload): Map<string, { x: number; y: number }>
   });
   zones.sort((a, b) => (zoneMinLayer.get(a)! - zoneMinLayer.get(b)!) || a.localeCompare(b));
   const laneOf = new Map(zones.map((z, i) => [z, i]));
-  const COL = 360;   // horizontal step per BFS layer
-  const STEP = 152;  // vertical step between stacked cards (> card height)
-  const PAD = 70;    // breathing room between lanes
+  const COL = 400;   // horizontal step per BFS layer
+  const STEP = 176;  // vertical step between stacked cards (> card height)
+  const PAD = 84;    // breathing room between lanes
 
   const cell = new Map<string, string[]>();
   graph.nodes.forEach((n) => {
@@ -331,8 +327,8 @@ function layoutRadial(graph: GraphPayload): Map<string, { x: number; y: number }
     rings.get(d)!.push(n.id);
   });
   const pos = new Map<string, { x: number; y: number }>([["INTERNET", { x: 0, y: 0 }]]);
-  const RING = 300;      // radial gap per BFS layer
-  const MIN_ARC = 150;   // min arc-length between neighbours on a ring
+  const RING = 340;      // radial gap per BFS layer
+  const MIN_ARC = 170;   // min arc-length between neighbours on a ring
   rings.forEach((ids, d) => {
     ids.sort((a, b) => {
       const na = byId.get(a)!, nb = byId.get(b)!;
@@ -368,21 +364,19 @@ function InspectorRow({ label, children }: { label: string; children: ReactNode 
 }
 
 function NodeInspector({
-  node, degree, stepIndex, left, top,
+  node, degree, stepIndex,
 }: {
-  node: GraphNode; degree: number; stepIndex: number | null; left: number; top: number;
+  node: GraphNode; degree: number; stepIndex: number | null;
 }) {
   if (node.kind === "internet") {
     return (
-      <div className="ag-inspector pointer-events-none absolute z-30 w-[210px]" style={{ left, top }}>
-        <div className="rounded-xl border border-immediate/40 bg-surface p-3 shadow-pop">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-immediate">
-            <Waypoints size={13} /> Internet
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-ink-muted">
-            The attacker's starting point. Every discovered chain originates here.
-          </p>
+      <div className="w-[210px] rounded-xl border border-immediate/40 bg-surface p-3 shadow-pop">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-immediate">
+          <Waypoints size={13} /> Internet
         </div>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-ink-muted">
+          The attacker's starting point. Every discovered chain originates here.
+        </p>
       </div>
     );
   }
@@ -390,57 +384,55 @@ function NodeInspector({
   const color = nodeColor(node);
   const Icon = roleIcon(node.role ?? "", node.label, node.kind);
   return (
-    <div className="ag-inspector pointer-events-none absolute z-30 w-[248px]" style={{ left, top }}>
-      <div className="overflow-hidden rounded-xl border border-line-strong bg-surface shadow-pop">
-        <div className="flex items-center gap-2 border-b border-line px-3 py-2.5" style={{ background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
-          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
-            <Icon size={15} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-semibold text-ink">{node.label}</div>
-            <div className="truncate text-[10px] text-ink-faint">{node.zone}{node.vlan && ` · VLAN ${node.vlan}`}</div>
-          </div>
-          {stepIndex != null && (
-            <span className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold text-forest" style={{ background: color }}>
-              STEP {stepIndex}
+    <div className="w-[248px] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-pop">
+      <div className="flex items-center gap-2 border-b border-line px-3 py-2.5" style={{ background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
+        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
+          <Icon size={15} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-semibold text-ink">{node.label}</div>
+          <div className="truncate text-[10px] text-ink-faint">{node.zone}{node.vlan && ` · VLAN ${node.vlan}`}</div>
+        </div>
+        {stepIndex != null && (
+          <span className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold text-forest" style={{ background: color }}>
+            STEP {stepIndex}
+          </span>
+        )}
+      </div>
+      <dl className="space-y-1.5 px-3 py-2.5 text-[11px]">
+        {node.role && <InspectorRow label="Role">{node.role}</InspectorRow>}
+        {node.team && <InspectorRow label="Owner">{node.team}</InspectorRow>}
+        <InspectorRow label="Peak risk">
+          {node.grs > 0
+            ? <span className="font-mono font-semibold" style={{ color }}>{node.grs} · {BAND_META[band].label}</span>
+            : <span className="text-ink-faint">no findings</span>}
+        </InspectorRow>
+        {node.grs > 0 && <InspectorRow label="Remediation SLA">{BAND_META[band].text}</InspectorRow>}
+        <InspectorRow label="Target value">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1 w-14 overflow-hidden rounded-full bg-surface-3">
+              <span className="block h-full rounded-full bg-purple" style={{ width: `${Math.round((node.value ?? 0) * 100)}%` }} />
+            </span>
+            <span className="font-mono">{(node.value ?? 0).toFixed(2)}</span>
+          </span>
+        </InspectorRow>
+        <InspectorRow label="Findings">{node.qids?.length ?? 0}</InspectorRow>
+        <InspectorRow label="Connections">{degree}</InspectorRow>
+      </dl>
+      {(node.entry || node.crown) && (
+        <div className="flex flex-wrap gap-1 border-t border-line px-3 py-2">
+          {node.entry && (
+            <span className="inline-flex items-center gap-1 rounded bg-immediate/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-immediate">
+              <Crosshair size={9} /> Internet-reachable entry
+            </span>
+          )}
+          {node.crown && (
+            <span className="inline-flex items-center gap-1 rounded bg-purple/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-purple">
+              ★ Crown jewel
             </span>
           )}
         </div>
-        <dl className="space-y-1.5 px-3 py-2.5 text-[11px]">
-          {node.role && <InspectorRow label="Role">{node.role}</InspectorRow>}
-          {node.team && <InspectorRow label="Owner">{node.team}</InspectorRow>}
-          <InspectorRow label="Peak risk">
-            {node.grs > 0
-              ? <span className="font-mono font-semibold" style={{ color }}>{node.grs} · {BAND_META[band].label}</span>
-              : <span className="text-ink-faint">no findings</span>}
-          </InspectorRow>
-          {node.grs > 0 && <InspectorRow label="Remediation SLA">{BAND_META[band].text}</InspectorRow>}
-          <InspectorRow label="Target value">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1 w-14 overflow-hidden rounded-full bg-surface-3">
-                <span className="block h-full rounded-full bg-purple" style={{ width: `${Math.round((node.value ?? 0) * 100)}%` }} />
-              </span>
-              <span className="font-mono">{(node.value ?? 0).toFixed(2)}</span>
-            </span>
-          </InspectorRow>
-          <InspectorRow label="Findings">{node.qids?.length ?? 0}</InspectorRow>
-          <InspectorRow label="Connections">{degree}</InspectorRow>
-        </dl>
-        {(node.entry || node.crown) && (
-          <div className="flex flex-wrap gap-1 border-t border-line px-3 py-2">
-            {node.entry && (
-              <span className="inline-flex items-center gap-1 rounded bg-immediate/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-immediate">
-                <Crosshair size={9} /> Internet-reachable entry
-              </span>
-            )}
-            {node.crown && (
-              <span className="inline-flex items-center gap-1 rounded bg-purple/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-purple">
-                ★ Crown jewel
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -461,6 +453,11 @@ export default function AttackGraph({
   const { fitView } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("flow");
+  // `hovered` is set once on node-enter (and cleared on leave) — never on
+  // every mousemove pixel. Rebuilding the nodes/edges arrays and
+  // re-rendering the whole graph continuously as the cursor moves is what
+  // caused the flicker/white-out bug, so the inspector anchors to the
+  // node's position instead of chasing the cursor.
   const [hovered, setHovered] = useState<{ node: GraphNode; left: number; top: number } | null>(null);
   const [focusOnHover, setFocusOnHover] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
@@ -468,7 +465,10 @@ export default function AttackGraph({
   const [fullscreen, setFullscreen] = useState(false);
   const [query, setQuery] = useState("");
   const [enabledKinds, setEnabledKinds] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(EDGE_KINDS.map((k) => [k, true])),
+    // "lateral" is by far the densest edge kind (host-to-host pivoting) and
+    // the least interesting at a glance, so it starts collapsed to keep the
+    // first view legible — one click in the panel brings it back.
+    () => Object.fromEntries(EDGE_KINDS.map((k) => [k, k !== "lateral"])),
   );
 
   const hoveredId = hovered?.node.id ?? null;
@@ -506,6 +506,17 @@ export default function AttackGraph({
     return seq.slice(0, -1).map((s, i) => `${s}__${seq[i + 1]}`);
   }, [selected]);
 
+  const edgeCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    graph.edges.forEach((e) => { m[e.kind] = (m[e.kind] ?? 0) + 1; });
+    return m;
+  }, [graph.edges]);
+
+  const hiddenEdgeCount = useMemo(
+    () => EDGE_KINDS.reduce((sum, k) => sum + (enabledKinds[k] ? 0 : edgeCounts[k] ?? 0), 0),
+    [enabledKinds, edgeCounts],
+  );
+
   const matchSet = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return null;
@@ -528,20 +539,28 @@ export default function AttackGraph({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutMode, graph]);
 
-  function trackHover(e: { clientX: number; clientY: number }, node: Node<NodeData> | GraphNode) {
+  // Anchors the inspector next to the node's own DOM position, computed
+  // once when the pointer enters it — not on every subsequent mousemove
+  // pixel, which is what used to force a full graph re-render on hover.
+  function handleNodeEnter(e: { currentTarget: Element }, node: Node<NodeData>) {
     const gnode = byId.get(node.id);
-    if (!gnode) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    if (!gnode || !containerRect) return;
+    const nodeRect = e.currentTarget.getBoundingClientRect();
     const W = 256, H = 260;
-    let left = e.clientX - rect.left + 18;
-    let top = e.clientY - rect.top + 18;
-    if (left + W > rect.width) left = e.clientX - rect.left - W - 12;
-    if (top + H > rect.height) top = Math.max(8, rect.height - H - 8);
+    let left = nodeRect.right - containerRect.left + 14;
+    let top = nodeRect.top - containerRect.top;
+    if (left + W > containerRect.width) left = nodeRect.left - containerRect.left - W - 14;
+    if (top + H > containerRect.height) top = Math.max(8, containerRect.height - H - 8);
     setHovered({ node: gnode, left: Math.max(8, left), top: Math.max(8, top) });
   }
 
-  const nodes: Node<NodeData>[] = graph.nodes.map((n) => {
+  // Memoized so a mousemove-driven re-render (which no longer even happens,
+  // see handleNodeEnter above) — or any other unrelated state change — never
+  // forces React Flow to re-diff all nodes/edges against brand-new object
+  // identities. This is required for a graph this dense (144 edges) to stay
+  // smooth on hover per React Flow v11's performance guidance.
+  const nodes: Node<NodeData>[] = useMemo(() => graph.nodes.map((n) => {
     const onPath = pathNodeIds?.has(n.id) ?? false;
     const inFocus = focusSet?.has(n.id) ?? false;
     const isMatch = matchSet?.has(n.id) ?? false;
@@ -560,9 +579,9 @@ export default function AttackGraph({
       },
       draggable: true,
     };
-  });
+  }), [graph.nodes, pos, pathNodeIds, focusSet, matchSet, stepIndexOf]);
 
-  const edges: Edge<EdgeData>[] = graph.edges
+  const edges: Edge<EdgeData>[] = useMemo(() => graph.edges
     .filter((e) => (enabledKinds[e.kind] ?? true) || pathEdgeKeys.includes(`${e.source}__${e.target}`))
     .map((e) => {
       const key = `${e.source}__${e.target}`;
@@ -579,6 +598,10 @@ export default function AttackGraph({
         source: e.source,
         target: e.target,
         type: "attack",
+        // React Flow's own battle-tested dash animation (targets any
+        // descendant <path> via a wrapper class) — not a custom keyframe
+        // under the pane transform. See index.css note above.
+        animated: onPath && revealed,
         markerEnd: { type: MarkerType.ArrowClosed, color: meta.color, width: 15, height: 15 },
         data: {
           kind: e.kind, onPath, revealed, dim, idle,
@@ -586,7 +609,7 @@ export default function AttackGraph({
           showLabel: showLabels,
         },
       };
-    });
+    }), [graph.edges, enabledKinds, pathEdgeKeys, replayStep, focusSet, matchSet, hoveredId, pathNodeIds, showLabels]);
 
   return (
     <div ref={containerRef} className={cx("relative", fullscreen ? "fixed inset-0 z-[60] bg-base" : "h-full w-full")}>
@@ -599,8 +622,7 @@ export default function AttackGraph({
         fitViewOptions={{ padding: 0.22 }}
         minZoom={0.12}
         maxZoom={2.2}
-        onNodeMouseEnter={(e, node) => trackHover(e, node)}
-        onNodeMouseMove={(e, node) => trackHover(e, node)}
+        onNodeMouseEnter={(e, node) => handleNodeEnter(e, node)}
         onNodeMouseLeave={() => setHovered(null)}
         onPaneClick={() => setHovered(null)}
         proOptions={{ hideAttribution: true }}
@@ -643,6 +665,7 @@ export default function AttackGraph({
                 >
                   <span className="h-1.5 w-3 rounded" style={{ background: EDGE_META[k].color, opacity: enabledKinds[k] ? 1 : 0.4 }} />
                   {EDGE_META[k].label}
+                  <span className="text-ink-faint">{edgeCounts[k] ?? 0}</span>
                 </button>
               ))}
             </div>
@@ -684,7 +707,9 @@ export default function AttackGraph({
             <div className="pointer-events-none rounded-lg border border-line bg-surface/85 px-3 py-1.5 text-[11px] text-ink-muted backdrop-blur">
               {matchSet
                 ? `${matchSet.size} match${matchSet.size === 1 ? "" : "es"} · clear search to reset`
-                : "Full attack surface · hover a node to inspect · select a path to trace it"}
+                : hiddenEdgeCount > 0
+                  ? `${hiddenEdgeCount} edge${hiddenEdgeCount === 1 ? "" : "s"} hidden for clarity · toggle in the panel to reveal`
+                  : "Full attack surface · hover a node to inspect · select a path to trace it"}
             </div>
           </Panel>
         )}
@@ -706,17 +731,18 @@ export default function AttackGraph({
         )}
       </ReactFlow>
 
-      {/* mouse-following hover inspector — lives in the container (not inside a
-          transformed react-flow node), so it never triggers the backdrop-filter
-          repaint bug that used to blank the canvas on hover. */}
+      {/* hover inspector — lives in the container (not inside a transformed
+          react-flow node), so it never triggers the backdrop-filter repaint
+          bug that used to blank the canvas on hover. Anchored once on
+          node-enter (see handleNodeEnter), not tracked on every mousemove. */}
       {hovered && (
-        <NodeInspector
-          node={hovered.node}
-          degree={neighbors.get(hovered.node.id)?.size ?? 0}
-          stepIndex={stepIndexOf.has(hovered.node.id) ? stepIndexOf.get(hovered.node.id)! : null}
-          left={hovered.left}
-          top={hovered.top}
-        />
+        <div className="ag-inspector pointer-events-none absolute z-30" style={{ left: hovered.left, top: hovered.top }}>
+          <NodeInspector
+            node={hovered.node}
+            degree={neighbors.get(hovered.node.id)?.size ?? 0}
+            stepIndex={stepIndexOf.has(hovered.node.id) ? stepIndexOf.get(hovered.node.id)! : null}
+          />
+        </div>
       )}
     </div>
   );

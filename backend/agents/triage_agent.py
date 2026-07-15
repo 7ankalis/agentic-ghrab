@@ -43,13 +43,60 @@ def answer_question(question: str, df: pd.DataFrame, cmdb: CMDB,
         return f"AI Analyst unavailable: {exc}"
 
 
-def executive_synthesis(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> str:
+def _prior_findings_digest(discovery: dict | None, correlation: dict | None,
+                            compliance: dict | None) -> str:
+    """Compact digest of what the Discovery, Correlation, and Compliance agents
+    already concluded. Triage runs last in the pipeline but, without this, it
+    re-derives its own view from the raw table in isolation — which lets the
+    dashboard's headline synthesis contradict the detail panels underneath it
+    (e.g. naming a different 'most urgent finding' than the ranked #1 attack
+    path). Feeding prior results in makes this an actual synthesis step."""
+    parts: list[str] = []
+
+    disc_paths = (discovery or {}).get("paths") or {}
+    if disc_paths:
+        top = sorted(disc_paths.values(),
+                     key=lambda p: {"high": 0, "medium": 1, "low": 2}.get(p.get("confidence"), 3))[:3]
+        lines = [f"  - {p.get('path_id')}: {p.get('headline', '')} "
+                 f"(confidence={p.get('confidence', '?')}, choke_point={p.get('choke_point', '?')})"
+                 for p in top]
+        parts.append("DISCOVERY AGENT — top ranked attack chains (already validated):\n" + "\n".join(lines))
+    combos = (discovery or {}).get("toxic_combinations") or []
+    if combos:
+        parts.append("DISCOVERY AGENT — toxic combinations already flagged:\n" +
+                     "\n".join(f"  - {c.get('title')}" for c in combos[:3]))
+
+    top_teams = (correlation or {}).get("top_risk_teams") or []
+    if top_teams:
+        parts.append("CORRELATION AGENT — top risk-owning teams already identified:\n" +
+                     "\n".join(f"  - {t.get('team')}: {t.get('rationale', '')}" for t in top_teams[:3]))
+
+    key_gaps = (compliance or {}).get("key_gaps") or []
+    if key_gaps:
+        parts.append("COMPLIANCE AGENT — key regulatory gaps already identified:\n" +
+                     "\n".join(f"  - {g.get('framework')}: {g.get('gap_description', '')}" for g in key_gaps[:3]))
+
+    return "\n\n".join(parts)
+
+
+def executive_synthesis(df: pd.DataFrame, cmdb: CMDB, session_state=None,
+                        discovery: dict | None = None, correlation: dict | None = None,
+                        compliance: dict | None = None) -> str:
     context = _full_context(df, cmdb)
+    digest = _prior_findings_digest(discovery, correlation, compliance)
+    if digest:
+        context += (
+            "\n\nPRIOR AGENT FINDINGS (already validated by earlier pipeline stages — "
+            f"your briefing must be CONSISTENT with these, not a competing guess):\n{digest}"
+        )
     task = (
         "Write a 4-6 sentence executive briefing for the VOC admin dashboard's "
         "Overview tab. Cover: overall posture, the single most urgent finding "
         "(name it), the most exposed team, and one systemic pattern (e.g. a "
-        "recurring class of misconfiguration). Direct, no filler, no headers."
+        "recurring class of misconfiguration). If PRIOR AGENT FINDINGS are given, "
+        "anchor your 'most urgent finding' and 'most exposed team' on them rather "
+        "than re-deriving your own answer — you are the final synthesis step, not "
+        "an independent analysis. Direct, no filler, no headers."
     )
     try:
         return ask("triage", task, context, session_state=session_state, max_tokens=500,
