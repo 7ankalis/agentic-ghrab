@@ -45,7 +45,7 @@ export function buildOverviewReport(data: Overview): string {
 export function buildFindingsCSV(findings: Finding[]): string {
   const cols: (keyof Finding)[] = [
     "qid", "title", "band", "grs", "severity", "cvss", "cve", "hostname", "zone",
-    "team", "status", "kev", "dora_cif", "compliance_ref", "attack_path_ref",
+    "team", "status", "kev", "dora_cif", "compliance_ref", "discovered_path_refs",
   ];
   const esc = (v: unknown) => {
     const s = String(v ?? "");
@@ -86,8 +86,22 @@ export function buildAttackPathsReport(data: AttackPathsResponse): string {
     });
   }
 
+  if (data.ai_detected?.length) {
+    lines.push(h2(`Analyst-Detected Paths (${data.ai_detected.length})`),
+      "_Reasoned from the asset/ownership/reachability grounding alone by the Analyst Detection Agent — no candidate list, no answer key. Every hop verified against a real finding._\n");
+    data.ai_detected.forEach((d) => {
+      lines.push(`### ${d.entry} → ${d.target} — ${d.grounded ? "grounded" : `${d.verified_hops}/${d.total_hops} hops verified`} (confidence ${d.confidence || "—"})`);
+      d.hops.forEach((h, i) => {
+        lines.push(`  ${i + 1}. ${h.from} → ${h.to}${h.via_qid != null ? ` (QID ${h.via_qid})` : ""}${h.enabler ? ` via ${h.enabler}` : ""}`);
+      });
+      if (d.business_impact) lines.push(`**Impact:** ${d.business_impact}`);
+      lines.push("");
+    });
+  }
+
   if (data.documented.length) {
-    lines.push(h2("Documented Paths (reference overlay)"));
+    lines.push(h2("Documented Paths (held-out verification ground truth)"),
+      "_Never ingested or shown to the engine/agents — used only to grade rediscovery._\n");
     data.documented.forEach((d) => {
       lines.push(`- **${d.path_id}** — ${d.entry} → ${d.target} (${d.hosts.join(" → ")})`);
     });

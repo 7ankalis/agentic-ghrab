@@ -310,7 +310,11 @@ def _path_to_steps(path: list[str], g: nx.DiGraph, nodes: dict[str, HostNode],
 
 def discover_paths(df: pd.DataFrame, cmdb: CMDB, caps: dict[int, Capability],
                    max_len: int = 8, k_per_pair: int = 2,
-                   top_n: int = 14) -> tuple[list[DiscoveredPath], nx.DiGraph, dict[str, HostNode]]:
+                   top_n: int | None = None) -> tuple[list[DiscoveredPath], nx.DiGraph, dict[str, HostNode]]:
+    """Enumerate every distinct entry→crown-jewel attack path the reachability
+    graph supports; how many there are is a property of the data, never a fixed
+    number. `top_n` is left None so the full set surfaces — pass an int only if a
+    caller explicitly wants the ranked list trimmed for display."""
     g, nodes = build_graph(df, cmdb, caps)
     df_by_qid = {int(r["QID"]): r for _, r in df.iterrows()}
     targets = [h for h, n in nodes.items() if n.is_crown_jewel and g.in_degree(h) > 0]
@@ -379,11 +383,13 @@ def discover_paths(df: pd.DataFrame, cmdb: CMDB, caps: dict[int, Capability],
             ranked.append(dp)
             used_targets.add(dp.target)
     for dp in candidates:
-        if len(ranked) >= top_n:
+        if top_n is not None and len(ranked) >= top_n:
             break
         if dp not in ranked:
             ranked.append(dp)
-    ranked = sorted(ranked[:top_n], key=lambda d: d.score, reverse=True)
+    if top_n is not None:
+        ranked = ranked[:top_n]
+    ranked = sorted(ranked, key=lambda d: d.score, reverse=True)
     for i, dp in enumerate(ranked, 1):
         dp.path_id = f"DISC-{i:02d}"
     return ranked, g, nodes

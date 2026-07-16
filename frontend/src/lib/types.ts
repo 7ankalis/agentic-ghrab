@@ -55,6 +55,7 @@ export interface Finding {
   status: string;
   compliance_ref: string;
   attack_path_ref: string;
+  discovered_path_refs: string[];
   grs: number;
   band: Band;
   sla: string;
@@ -140,12 +141,44 @@ export interface ToxicCombo {
   why_it_matters: string;
 }
 
+export interface DetectedHop {
+  from: string;
+  to: string;
+  via_qid: number | null;
+  enabler: string;
+  why: string;
+  verified: boolean;
+  finding: StepFindingRef | null;
+}
+
+export interface DetectedPath {
+  name: string;
+  entry: string;
+  target: string;
+  hops: DetectedHop[];
+  business_impact: string;
+  confidence: string;
+  grounded: boolean;
+  verified_hops: number;
+  total_hops: number;
+}
+
 export interface AttackPathsResponse {
   paths: AttackPath[];
+  ai_detected: DetectedPath[];
   toxic_combinations: ToxicCombo[];
   summary: string;
   documented: { path_id: string; entry: string; target: string; hosts: string[] }[];
   ai_enabled: boolean;
+}
+
+export interface Verification {
+  documented_total: number;
+  engine_rediscovered: number;
+  ai_detected: number;
+  ai_enabled: boolean;
+  paths: { path_id: string; entry: string; target: string; engine_rediscovered: boolean; ai_detected: boolean }[];
+  note: string;
 }
 
 export interface GraphNode {

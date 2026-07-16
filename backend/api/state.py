@@ -42,6 +42,12 @@ _lock = threading.Lock()
 def _attach_ai(result: AnalysisResult, run) -> None:
     result.ai_enabled = run.ai_enabled
     result.discovery = run.discovery or {}
+    # Analyst Detection Agent output was folded into the discovery blob on save
+    # (see orchestrator.run_ai_layer) — split it back out into its own field.
+    result.detected = {
+        "detected_paths": result.discovery.get("ai_detected", []),
+        "error": result.discovery.get("ai_detected_error"),
+    }
     result.correlation = run.correlation or {}
     result.compliance = run.compliance or {}
     result.executive_summary = run.executive_summary or ""

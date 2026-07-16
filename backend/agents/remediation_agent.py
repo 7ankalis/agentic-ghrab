@@ -12,7 +12,7 @@ from core.cmdb import CMDB
 
 def enrich_remediation(finding_row: pd.Series, cmdb: CMDB, session_state=None) -> dict:
     context = (
-        f"{cmdb.summary_text(3000)}\n\nFINDING:\n"
+        f"{cmdb.grounding_context(4000)}\n\nFINDING:\n"
         f"QID: {finding_row['QID']}\nTitle: {finding_row['Title']}\n"
         f"CVE: {finding_row['CVE_ID']}\nCVSS: {finding_row['CVSS_Base']}\n"
         f"GRS: {finding_row['GRS']} ({finding_row['GRS_Band']})\n"
@@ -37,7 +37,48 @@ def enrich_remediation(finding_row: pd.Series, cmdb: CMDB, session_state=None) -
         "'estimated_effort' (one of: 'Low (<1 day)', 'Medium (1-3 days)', 'High (>3 days, change-managed)')."
     )
     try:
-        return ask_json("remediation", task, context, session_state=session_state, max_tokens=1600,
-                        detail=f"remediation QID {finding_row['QID']}")
+        result = ask_json("remediation", task, context, session_state=session_state, max_tokens=1600,
+                          detail=f"remediation QID {finding_row['QID']}")
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
+    _coerce_lists(result, "step_by_step", "validation_steps")
+    _coerce_strings(result, "analyst_summary", "risk_of_fix", "estimated_effort")
+    return result
+
+
+def _flatten(val) -> str:
+    if isinstance(val, dict):
+        return "; ".join(f"{k}: {_flatten(v)}" for k, v in val.items())
+    if isinstance(val, list):
+        return "; ".join(_flatten(v) for v in val)
+    return str(val)
+
+
+def _coerce_lists(result: dict, *keys: str) -> None:
+    """The model is only told these fields are "ordered lists" via a text
+    instruction — nothing enforces it structurally, so a model can return a
+    single string instead of a one-item list. Normalize before it reaches a
+    frontend that does result[key].map(...)."""
+    for key in keys:
+        val = result.get(key)
+        if val is None:
+            continue
+        if isinstance(val, list):
+            # Each step is meant to be a string, but the model can return a
+            # list of objects (e.g. {"step": "...", "command": "..."}) instead
+            # — flatten every item, not just the top-level shape.
+            result[key] = [_flatten(v) for v in val]
+        elif isinstance(val, dict):
+            result[key] = [_flatten(v) for v in val.values()]
+        else:
+            result[key] = [str(val)]
+
+
+def _coerce_strings(result: dict, *keys: str) -> None:
+    """Same problem in the other direction: fields meant to be short strings
+    can come back as a dict/list, which React can't render as a child at all —
+    that's an uncaught render crash, not just a display glitch."""
+    for key in keys:
+        val = result.get(key)
+        if val is not None and not isinstance(val, str):
+            result[key] = _flatten(val)

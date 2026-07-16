@@ -15,7 +15,7 @@ def compliance_summary(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> dict
     cols = ["QID", "Title", "Hostname", "Compliance_Ref", "GRS", "GRS_Band", "DORA_CIF", "DORA_SLA_Capped"]
     table = df[cols].to_csv(index=False)
     context = (
-        f"{cmdb.summary_text(3000)}\n\n"
+        f"{cmdb.grounding_context(6000)}\n\n"
         f"FINDINGS WITH COMPLIANCE REFERENCES (CSV):\n{table[:6000]}\n\n"
         f"DORA critical-or-important-function (CIF) scoped findings: {len(cif_df)} of {len(df)} total."
     )

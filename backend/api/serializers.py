@@ -28,7 +28,7 @@ def _clean(v: Any) -> Any:
     return v
 
 
-def finding_row(row: pd.Series, caps: dict) -> dict:
+def finding_row(row: pd.Series, caps: dict, path_refs: list[str] | None = None) -> dict:
     qid = int(row["QID"])
     cap = caps.get(qid)
     return {
@@ -48,7 +48,10 @@ def finding_row(row: pd.Series, caps: dict) -> dict:
         "team": str(row["Responsible_Team"]),
         "status": str(row["Status"]),
         "compliance_ref": str(row["Compliance_Ref"]),
-        "attack_path_ref": str(row["Attack_Path_Ref"]),
+        # The documented answer-key column was removed from the ingested data; a
+        # finding's path membership is now whatever the engine *discovered* it in.
+        "attack_path_ref": "",
+        "discovered_path_refs": path_refs or [],
         "grs": _clean(row["GRS"]),
         "band": str(row["GRS_Band"]),
         "sla": str(row["GRS_SLA"]),
@@ -90,8 +93,21 @@ def finding_detail(row: pd.Series, caps: dict) -> dict:
     return base
 
 
+def _qid_to_discovered_paths(result: AnalysisResult) -> dict[int, list[str]]:
+    """Map each finding QID to the discovered path ids (DISC-xx) whose chain it
+    enables — so the Findings table can show engine-derived path membership in
+    place of the removed hardcoded Attack_Path_Ref column."""
+    out: dict[int, list[str]] = {}
+    for p in result.paths:
+        for qid in p.enabler_qids:
+            out.setdefault(int(qid), []).append(p.path_id)
+    return out
+
+
 def findings_list(result: AnalysisResult) -> list[dict]:
-    return [finding_row(r, result.caps) for _, r in result.df.iterrows()]
+    path_map = _qid_to_discovered_paths(result)
+    return [finding_row(r, result.caps, path_map.get(int(r["QID"]), []))
+            for _, r in result.df.iterrows()]
 
 
 def kpis(result: AnalysisResult) -> dict:
@@ -162,6 +178,72 @@ def attack_paths(result: AnalysisResult) -> list[dict]:
         d["confidence"] = enrich.get("confidence", "")
         d["novelty"] = enrich.get("novelty", "")
         out.append(d)
+    return out
+
+
+def _canon_host(name: str, host_set: set[str]) -> str:
+    n = str(name).strip()
+    for h in host_set:
+        if h == n or (n and (n.lower().startswith(h.lower()) or h.lower() in n.lower())):
+            return h
+    return n
+
+
+def verification(result: AnalysisResult) -> dict:
+    """Scores whether the held-out documented attack paths (data/oracle, never
+    shown to the engine or agents) were independently rediscovered — by the
+    deterministic reachability engine and by the Analyst Detection Agent. This is
+    the "is my detection system actually working?" view: the answer key exists
+    only to grade the system, not to feed it."""
+    import networkx as nx
+
+    g = result.graph
+    host_set = set(result.nodes)
+    engine_targets = {p.target for p in result.paths}
+    detected = (result.detected or {}).get("detected_paths", [])
+    detected_targets = {
+        _canon_host(d.get("target", ""), host_set) for d in detected
+    } & host_set
+
+    rows, engine_ok, ai_ok = [], 0, 0
+    for c in result.documented_chains:
+        entry = _canon_host(c.entry_point, host_set)
+        target = _canon_host(c.target, host_set)
+        engine_hit = target in engine_targets or (
+            entry in g and target in g
+            and nx.has_path(g, INTERNET, entry) and nx.has_path(g, entry, target)
+        )
+        ai_hit = target in detected_targets
+        engine_ok += engine_hit
+        ai_ok += ai_hit
+        rows.append({
+            "path_id": c.path_id, "entry": entry, "target": target,
+            "engine_rediscovered": bool(engine_hit), "ai_detected": bool(ai_hit),
+        })
+    total = len(result.documented_chains)
+    return {
+        "documented_total": total,
+        "engine_rediscovered": engine_ok,
+        "ai_detected": ai_ok,
+        "ai_enabled": result.ai_enabled,
+        "paths": rows,
+        "note": ("Documented paths are held-out ground truth (data/oracle/), never "
+                 "ingested and never shown to the engine or the agents. This grades "
+                 "whether they were rediscovered from the raw grounding alone."),
+    }
+
+
+def ai_detected_paths(result: AnalysisResult) -> list[dict]:
+    """The Analyst Detection Agent's independently-reasoned paths (already hop-
+    verified against real hosts/QIDs in the agent). Enriched with finding titles."""
+    lookup = _title_lookup(result.df)
+    out = []
+    for d in (result.detected or {}).get("detected_paths", []):
+        hops = []
+        for h in d.get("hops", []):
+            via = h.get("via_qid")
+            hops.append({**h, "finding": lookup.get(int(via)) if via else None})
+        out.append({**d, "hops": hops})
     return out
 
 

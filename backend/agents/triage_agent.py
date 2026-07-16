@@ -12,9 +12,9 @@ from core.cmdb import CMDB
 
 def _full_context(df: pd.DataFrame, cmdb: CMDB) -> str:
     cols = ["QID", "Title", "Severity", "CVSS_Base", "CVE_ID", "Hostname", "Zone",
-            "Responsible_Team", "GRS", "GRS_Band", "Attack_Path_Ref", "Compliance_Ref", "Status"]
+            "Responsible_Team", "GRS", "GRS_Band", "Compliance_Ref", "Status"]
     table = df[cols].to_csv(index=False)
-    return f"{cmdb.summary_text(5000)}\n\nFULL FINDINGS TABLE (CSV, GRS-sorted):\n{table}"
+    return f"{cmdb.grounding_context(7000)}\n\nFULL FINDINGS TABLE (CSV, GRS-sorted):\n{table}"
 
 
 def answer_question(question: str, df: pd.DataFrame, cmdb: CMDB,

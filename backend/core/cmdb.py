@@ -83,6 +83,14 @@ class CMDB:
         self.assets: list[Asset] = []
         self.teams: list[Team] = []
         self.attack_paths: list[AttackPath] = []
+        # Grounding relationships parsed from the architecture doc (§2–§5). These
+        # are the raw material an analyst reasons FROM to derive attack paths —
+        # they are NOT attack paths themselves. The documented paths live only in
+        # the held-out oracle (core/oracle.py); the CMDB never carries them.
+        self.hosting_relations: list[str] = []      # §2 virtualization / hosting
+        self.reachability_rules: list[str] = []     # §3 zone-to-zone reachability
+        self.dependencies: list[str] = []           # §4 host/app/db dependencies
+        self.cred_relations: list[str] = []         # §5 identity/credential reuse
         self.raw_markdown: str = ""
 
     def load(self, path=None) -> "CMDB":
@@ -233,7 +241,78 @@ class CMDB:
                         example_assets=", ".join(team_assets.get(group_id, [])),
                     ))
 
-        self._parse_ci_attack_paths(text)
+        self._parse_relationships(text)
+
+    def _relationship_table(self, text: str, start_pat: str, require: str):
+        """First markdown table inside the given section whose header contains
+        `require` (lowercased) — used to pull §2–§5 relationship tables robustly
+        regardless of column ordering. Returns (header, rows) or (None, [])."""
+        section = self._section(text, start_pat, r"\n## ")
+        if not section:
+            return None, []
+        for table in _parse_markdown_tables(section):
+            if not table:
+                continue
+            header = [h.lower() for h in table[0]]
+            if require in header:
+                return header, table[1:]
+        return None, []
+
+    def _parse_relationships(self, text: str) -> None:
+        """Parse the network/identity relationship tables (§2 hosting, §3
+        reachability, §4 dependencies, §5 credentials) into condensed, analyst-
+        readable lines. This is the grounding an agent needs to independently
+        reason out attack paths — deliberately NOT the paths themselves."""
+        # §2 Virtualization / Hosting — the hypervisor blast-radius relationship
+        header, rows = self._relationship_table(text, r"## 2\. Virtualization", "guest ci")
+        for r in rows:
+            d = dict(zip(header, r))
+            guest, rel, host = d.get("guest ci", ""), d.get("relationship", ""), d.get("host ci", "")
+            if guest and host:
+                self.hosting_relations.append(f"{guest} {rel or 'hosted on'} {host}")
+
+        # §3 Network Reachability Rule Base — 'Excessive' rows are the misconfigs
+        # that actually open a zone boundary; 'Should-Not-Exist' rows are absent paths.
+        header, rows = self._relationship_table(text, r"## 3\. Network Reachability", "source zone")
+        for r in rows:
+            d = dict(zip(header, r))
+            rid = d.get("rule id", "")
+            src, dst = d.get("source zone", ""), d.get("destination zone", "")
+            status, notes = d.get("status", ""), d.get("notes", "")
+            port = d.get("port/protocol", d.get("port", ""))
+            if src and dst:
+                self.reachability_rules.append(
+                    f"{rid}: {src} → {dst} ({port}) [{status}]"
+                    + (f" — {notes}" if notes else "")
+                )
+
+        # §4 Host / App / DB dependency relationships
+        header, rows = self._relationship_table(text, r"## 4\. Host, Application", "source ci")
+        for r in rows:
+            d = dict(zip(header, r))
+            rid = d.get("relationship id", "")
+            src, rtype, tgt = d.get("source ci", ""), d.get("relationship type", ""), d.get("target ci", "")
+            flag, just = d.get("flag", ""), d.get("justification", "")
+            if src and tgt:
+                self.dependencies.append(
+                    f"{rid}: {src} --[{rtype}]--> {tgt}"
+                    + (f" [{flag}]" if flag else "") + (f" — {just}" if just else "")
+                )
+
+        # §5 Identity & Credential relationships — a credential valid on >1 CI is a
+        # non-network pivot, the class of move a zone-only view misses entirely.
+        header, rows = self._relationship_table(text, r"## 5\. Identity", "valid on (ci id)")
+        for r in rows:
+            d = dict(zip(header, r))
+            cid = d.get("relationship id", "")
+            ident = d.get("credential/identity ci", "")
+            valid_on = d.get("valid on (ci id)", "")
+            access, issue = d.get("access level granted", ""), d.get("issue", "")
+            if ident and valid_on:
+                self.cred_relations.append(
+                    f"{cid}: {ident} valid on [{valid_on}] → {access}"
+                    + (f" — {issue}" if issue else "")
+                )
 
     def _parse_ci_attack_paths(self, text: str) -> None:
         section = self._section(text, r"## 6\. Attack Paths", r"\n## 7\.")
@@ -333,23 +412,59 @@ class CMDB:
                 return team.name
         return ""
 
-    def summary_text(self, max_chars: int = 6000) -> str:
-        """Condensed context block fed to LLM agents (keeps token spend sane)."""
-        parts = ["## Network Zones"]
+    def grounding_context(self, max_chars: int = 7000) -> str:
+        """The CMDB context fed to every LLM agent: the raw asset inventory,
+        ownership, and network/identity relationships an analyst reasons FROM —
+        and deliberately NOT any attack path. The documented paths are held out
+        in the oracle (core/oracle.py); the whole point of the redesign is that
+        the agents rediscover chains from this grounding, not read them off a
+        pre-solved list. Sections are ordered by how much they drive path
+        reasoning, so truncation drops the least critical material first."""
+        parts = ["## Network Zones (VLAN — name — trust level — owning team)"]
         for z in self.zones:
-            parts.append(f"- VLAN {z.vlan} ({z.name}, {z.cidr}): {z.purpose} | "
-                          f"Trust={z.trust_level} | Owner={z.owning_team}")
-        parts.append("\n## Teams")
+            parts.append(f"- VLAN {z.vlan} — {z.name} ({z.cidr}): {z.purpose} | "
+                         f"trust={z.trust_level} | owner={z.owning_team}")
+
+        parts.append("\n## Asset Inventory (host — zone — role/platform — criticality — owner)")
+        for a in self.assets:
+            owner = self.team_for_asset(a.hostname)
+            zone = a.zone_name or (f"VLAN {a.vlan}" if a.vlan else "")
+            parts.append(
+                f"- {a.hostname} — {zone} — {a.role or '?'}"
+                + (f" — {a.notable_issue}" if a.notable_issue else "")
+                + (f" — owner: {owner}" if owner else "")
+            )
+
+        parts.append("\n## Teams / Ownership")
         for t in self.teams:
-            parts.append(f"- {t.name}: {t.responsible_for} | Assets: {t.example_assets}")
-        parts.append("\n## Attack Paths")
-        for p in self.attack_paths:
-            parts.append(f"- {p.path_id} ({p.difficulty}): {p.title}")
-            for s in p.steps:
-                parts.append(f"    {s}")
-            parts.append(f"    Impact: {p.impact}")
-        text = "\n".join(parts)
-        return text[:max_chars]
+            parts.append(f"- {t.name}: {t.responsible_for} | owns: {t.example_assets}")
+
+        if self.reachability_rules:
+            parts.append("\n## Network Reachability Rules (zone-to-zone; 'Excessive' = a "
+                         "misconfiguration that opens a boundary, 'Should-Not-Exist' = no path)")
+            parts += [f"- {r}" for r in self.reachability_rules]
+
+        if self.cred_relations:
+            parts.append("\n## Identity & Credential Relationships (a credential valid on more "
+                         "than one CI is a lateral pivot that involves no network rule)")
+            parts += [f"- {c}" for c in self.cred_relations]
+
+        if self.dependencies:
+            parts.append("\n## Host / App / DB Dependencies")
+            parts += [f"- {d}" for d in self.dependencies]
+
+        if self.hosting_relations:
+            parts.append("\n## Virtualization / Hosting (compromise of a host CI implies "
+                         "compromise of every guest it hosts)")
+            parts += [f"- {h}" for h in self.hosting_relations]
+
+        return "\n".join(parts)[:max_chars]
+
+    # Back-compat alias: some callers still ask for summary_text(). It now returns
+    # the grounded context (no attack paths), so nothing can accidentally surface
+    # the old pre-solved-paths block to an agent.
+    def summary_text(self, max_chars: int = 7000) -> str:
+        return self.grounding_context(max_chars)
 
 
 _cmdb_singleton: CMDB | None = None

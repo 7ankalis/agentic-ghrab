@@ -43,11 +43,12 @@ def analyze(paths: list[DiscoveredPath], df: pd.DataFrame, cmdb: CMDB,
     qid_ref = "\n".join(f"  QID {q}: {t}" for q, t in sorted(titles.items()))
     evidence = "\n".join(p.evidence_line() for p in paths)
     context = (
-        f"{cmdb.summary_text(3500)}\n\n"
+        f"{cmdb.grounding_context(7000)}\n\n"
         f"FINDING REFERENCE (QID -> title [host]):\n{qid_ref}\n\n"
-        f"CANDIDATE ATTACK CHAINS discovered by the graph engine (ground truth — "
-        f"do not invent new hosts or QIDs; each hop is already justified by a "
-        f"finding):\n{evidence}"
+        f"CANDIDATE ATTACK CHAINS the reachability engine derived from the CMDB "
+        f"relationships above (these were computed from the grounding, NOT read from "
+        f"any documented list — validate them; do not invent new hosts or QIDs, each "
+        f"hop is already justified by a finding):\n{evidence}"
     )
 
     narrate_task = (

@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import networkx as nx
 import pandas as pd
 
+from agents.analyst_agent import detect_attack_paths
 from agents.compliance_agent import compliance_summary
 from agents.correlation_agent import find_toxic_combinations
 from agents.discovery_agent import analyze as analyze_paths
@@ -48,10 +49,12 @@ class AnalysisResult:
     documented_chains: list[Chain]        # from Attack_Path_Ref, for the discovered/documented overlay
     ai_enabled: bool
     discovery: dict = field(default_factory=dict)
+    detected: dict = field(default_factory=dict)   # Analyst Detection Agent — paths reasoned from grounding alone
     correlation: dict = field(default_factory=dict)
     compliance: dict = field(default_factory=dict)
     executive_summary: str = ""
     generated_at: float = 0.0
+    remediations: dict = field(default_factory=dict)  # qid -> enrich_remediation() result, cached for the session
 
 
 def compute_deterministic(progress_cb=None) -> AnalysisResult:
@@ -72,7 +75,7 @@ def compute_deterministic(progress_cb=None) -> AnalysisResult:
 
     report("Discovering attack paths from the reachability graph…")
     paths, graph, nodes = discover_paths(df, cmdb, caps)
-    documented = build_chains(df)   # oracle/overlay only — never fed to discovery
+    documented = build_chains(df)   # held-out oracle, verification overlay only — never fed to any agent
 
     return AnalysisResult(
         df=df, cmdb=cmdb, caps=caps, paths=paths, graph=graph, nodes=nodes,
@@ -97,6 +100,13 @@ def run_ai_layer(result: AnalysisResult, session_state=None, progress_cb=None,
             raise RunCancelled
 
     df, cmdb, paths = result.df, result.cmdb, result.paths
+
+    checkpoint()
+    report("Analyst Detection Agent: reasoning attack paths from asset+ownership+"
+           "reachability grounding (no candidate list, no answer key)…")
+    result.detected = detect_attack_paths(df, cmdb, result.caps, result.nodes, session_state)
+    if result.detected.get("error"):
+        report(f"Analyst Detection Agent — provider error: {result.detected['error']}", "warn")
 
     checkpoint()
     report("Discovery Agent: validating, ranking, and narrating attack chains…")
@@ -125,5 +135,12 @@ def run_ai_layer(result: AnalysisResult, session_state=None, progress_cb=None,
     )
     if result.executive_summary.startswith("AI executive synthesis unavailable"):
         report(f"Triage Agent — provider error: {result.executive_summary}", "warn")
+
+    # Persist the Analyst Detection Agent's output inside the discovery blob so it
+    # round-trips through the existing analysis_run schema (no dedicated column /
+    # migration needed); api/state._attach_ai splits it back out on rehydrate.
+    result.discovery["ai_detected"] = result.detected.get("detected_paths", [])
+    if result.detected.get("error"):
+        result.discovery["ai_detected_error"] = result.detected["error"]
 
     report("Analysis complete.")

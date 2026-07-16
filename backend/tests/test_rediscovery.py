@@ -1,6 +1,7 @@
 """Acceptance gate: the discovery engine must re-derive the documented attack
-paths A-F from capability logic alone. The `Attack_Path_Ref` column is used
-ONLY here, as an offline oracle — never by the engine itself."""
+paths A-F from capability logic alone. The documented paths live in the held-out
+verification oracle (data/oracle/, loaded via core.oracle) — never in the
+ingested data the engine reads."""
 from __future__ import annotations
 
 import sys
@@ -12,13 +13,15 @@ from core.attack_graph import discover_paths
 from core.capability import classify_all
 from core.cmdb import get_cmdb
 from core.ingestion import get_vulnerabilities
+from core.oracle import attack_path_refs
 
 
 def documented_routes(df):
-    """Ordered host sequence per documented PATH-x, from Attack_Path_Ref (oracle only)."""
-    routes: dict[str, list[str]] = {}
+    """Ordered host sequence per documented PATH-x, from the oracle (test only)."""
+    refs = attack_path_refs()
+    routes: dict[str, list[tuple[int, str]]] = {}
     for _, r in df.iterrows():
-        ref = str(r["Attack_Path_Ref"])
+        ref = str(refs.get(int(r["QID"]), ""))
         if ref.startswith("PATH-"):
             pid = ref.split("-Step")[0]
             step = int(ref.split("-Step")[1])

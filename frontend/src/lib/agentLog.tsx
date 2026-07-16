@@ -60,7 +60,20 @@ export function AgentLogProvider({ children }: { children: ReactNode }) {
             const key = `${entry.id}-${entry.event}`;
             if (seenRef.current.has(key)) return;
             seenRef.current.add(key);
-            setEntries((prev) => [entry, ...prev].slice(0, MAX_ENTRIES));
+            setEntries((prev) => {
+              // A finish event (success/error) updates its "start" row in
+              // place instead of appending a second, permanently-stuck-blue
+              // row for the same logical call.
+              if (entry.event !== "start") {
+                const idx = prev.findIndex((e) => e.id === entry.id);
+                if (idx !== -1) {
+                  const next = [...prev];
+                  next[idx] = entry;
+                  return next;
+                }
+              }
+              return [entry, ...prev].slice(0, MAX_ENTRIES);
+            });
             if (entry.event === "start") {
               startsRef.current.set(entry.id, entry);
             } else {

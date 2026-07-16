@@ -1,6 +1,6 @@
 import { Component, useState, type ReactNode } from "react";
-import { ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Skull } from "lucide-react";
-import { useAttackPaths, useGraph } from "@/lib/hooks";
+import { ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, ShieldCheck, Skull, Sparkles } from "lucide-react";
+import { useAttackPaths, useGraph, useVerification } from "@/lib/hooks";
 import { EDGE_META, confidenceColor, cx } from "@/lib/format";
 import { AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
 import { downloadMarkdown, timestamp } from "@/lib/report";
@@ -12,6 +12,7 @@ import type { AttackPath } from "@/lib/types";
 export default function AttackPaths() {
   const { data: paths, isLoading: lp } = useAttackPaths();
   const { data: graph, isLoading: lg } = useGraph();
+  const { data: verif } = useVerification();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replay, setReplay] = useState(-1);
   const [railOpen, setRailOpen] = useState(true);
@@ -51,6 +52,32 @@ export default function AttackPaths() {
       >
         Attack Paths
       </SectionTitle>
+
+      {/* Verification vs held-out ground truth: did the engine & the analyst agent
+          independently rediscover the documented paths (which are never ingested)? */}
+      {verif && verif.documented_total > 0 && (
+        <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-sage-bright" />
+            <span className="label">Verification vs held-out ground truth</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-lg font-semibold text-ink">
+              {verif.engine_rediscovered}/{verif.documented_total}
+            </span>
+            <span className="text-xs text-ink-muted">rediscovered by the reachability engine</span>
+          </div>
+          {verif.ai_enabled && (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-lg font-semibold text-ink">
+                {verif.ai_detected}/{verif.documented_total}
+              </span>
+              <span className="text-xs text-ink-muted">detected by the analyst agent</span>
+            </div>
+          )}
+          <p className="w-full text-[11px] leading-relaxed text-ink-faint">{verif.note}</p>
+        </div>
+      )}
 
       {paths.ai_enabled && paths.summary && <AiCard label="Attack-Surface Synthesis">{paths.summary}</AiCard>}
 
@@ -136,6 +163,54 @@ export default function AttackPaths() {
       </div>
 
       {selected && <PathDetail path={selected} />}
+
+      {/* AI-detected paths — reasoned from grounding alone by the analyst agent */}
+      {paths.ai_detected?.length > 0 && (
+        <div>
+          <SectionTitle sub="Reasoned from scratch by the Analyst Detection Agent — given only the asset inventory, ownership, and reachability/credential relationships, never a candidate list or a script. Every hop is verified against a real finding.">
+            Analyst-Detected Paths
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {paths.ai_detected.map((d, i) => (
+              <div key={i} className="card p-4">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={15} className="shrink-0 text-purple" />
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span className="font-medium text-ink">{d.entry}</span>
+                      <ChevronRight size={13} className="text-ink-faint" />
+                      <span className="font-medium text-purple">{d.target}</span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {d.confidence && (
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: confidenceColor(d.confidence) }} title={`confidence: ${d.confidence}`} />
+                    )}
+                    <Tag color={d.grounded ? "rgb(var(--c-sage-bright))" : "rgb(var(--c-act))"}>
+                      {d.grounded ? "grounded" : `${d.verified_hops}/${d.total_hops} verified`}
+                    </Tag>
+                  </div>
+                </div>
+                <ol className="space-y-1">
+                  {d.hops.map((h, j) => (
+                    <li key={j} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                      <span className={cx("h-1 w-1 rounded-full", h.verified ? "bg-sage-bright" : "bg-immediate")} />
+                      <span className="text-ink">{h.from}</span>
+                      <ChevronRight size={11} className="text-ink-faint" />
+                      <span className="text-ink">{h.to}</span>
+                      {h.via_qid != null && <span className="font-mono text-[10px] text-ink-faint">QID {h.via_qid}</span>}
+                      {h.enabler && <span className="text-[10px] text-ink-faint">· {h.enabler}</span>}
+                    </li>
+                  ))}
+                </ol>
+                {d.business_impact && (
+                  <p className="mt-2 text-xs text-ink-muted"><span className="font-semibold text-ink">Impact: </span>{d.business_impact}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Toxic combinations */}
       {paths.toxic_combinations.length > 0 && (

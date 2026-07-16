@@ -1,7 +1,7 @@
 import type {
   AttackPathsResponse, Compliance, Correlation, DatasetsResponse, FindingDetail,
   GraphPayload, Kpis, LogEntry, Overview, ProvidersResponse, Remediation,
-  RunSummary, TeamStat,
+  RunSummary, TeamStat, Verification,
 } from "./types";
 import type { Finding } from "./types";
 
@@ -35,7 +35,9 @@ export const api = {
   findings: () => get<{ findings: Finding[]; total: number }>("/findings"),
   finding: (qid: number) => get<FindingDetail>(`/findings/${qid}`),
   remediation: (qid: number) => post<Remediation>(`/findings/${qid}/remediation`),
+  getRemediation: (qid: number) => get<Remediation & { generated?: boolean }>(`/findings/${qid}/remediation`),
   attackPaths: () => get<AttackPathsResponse>("/attack-paths"),
+  verification: () => get<Verification>("/verification"),
   graph: () => get<GraphPayload>("/graph"),
   correlation: () => get<{ correlation: Correlation; ai_enabled: boolean }>("/correlation"),
   compliance: () => get<{ compliance: Compliance; ai_enabled: boolean }>("/compliance"),

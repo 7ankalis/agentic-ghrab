@@ -77,6 +77,16 @@ def finding(qid: int):
     return S.finding_detail(match.iloc[0], r.caps)
 
 
+@router.get("/findings/{qid}/remediation")
+def get_remediation(qid: int):
+    """Previously generated remediation plan for this QID, if any — lets the
+    SPA restore the AI panel on page refresh instead of losing it once the
+    in-flight mutation's React state is gone."""
+    r = get_analysis()
+    cached = r.remediations.get(qid)
+    return cached if cached is not None else {"generated": False}
+
+
 @router.post("/findings/{qid}/remediation")
 def remediation(qid: int):
     r = get_analysis()
@@ -85,7 +95,10 @@ def remediation(qid: int):
         raise HTTPException(404, f"QID {qid} not found")
     if not r.ai_enabled:
         raise HTTPException(409, "No AI provider connected. Add a key in Settings.")
-    return enrich_remediation(match.iloc[0], r.cmdb, runtime_settings)
+    result = enrich_remediation(match.iloc[0], r.cmdb, runtime_settings)
+    if not result.get("error"):
+        r.remediations[qid] = result
+    return result
 
 
 @router.get("/attack-paths")
@@ -93,6 +106,7 @@ def attack_paths():
     r = get_analysis()
     return {
         "paths": S.attack_paths(r),
+        "ai_detected": S.ai_detected_paths(r),
         "toxic_combinations": (r.discovery or {}).get("toxic_combinations", []),
         "summary": (r.discovery or {}).get("summary", ""),
         "documented": [
@@ -102,6 +116,12 @@ def attack_paths():
         ],
         "ai_enabled": r.ai_enabled,
     }
+
+
+@router.get("/verification")
+def verification():
+    """Grades engine + AI-agent rediscovery of the held-out documented paths."""
+    return S.verification(get_analysis())
 
 
 @router.get("/graph")

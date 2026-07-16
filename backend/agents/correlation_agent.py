@@ -1,9 +1,11 @@
 """Correlation Agent — cross-references the full findings set against the CMDB
-to surface 'toxic combinations' that aren't already captured as a documented
-attack-path chain (e.g. two independently low findings that, combined with an
-excessive-privilege misconfig, create a real path). Bounded to the standalone
-/ non-chained findings plus the CMDB, so it doesn't re-derive what the
-deterministic graph already proves."""
+grounding (asset ownership, zone reachability rules, credential-reuse and
+dependency relationships) to surface 'toxic combinations': two or more findings
+that are individually unremarkable but, chained through a shared credential,
+excessive reachability rule, or dependency, create real organizational risk.
+
+It is NOT given any pre-solved attack path — it reasons the correlations out of
+the raw relationships, which is the point of the redesign."""
 from __future__ import annotations
 
 import pandas as pd
@@ -13,22 +15,27 @@ from core.cmdb import CMDB
 
 
 def find_toxic_combinations(df: pd.DataFrame, cmdb: CMDB, session_state=None) -> dict:
-    cols = ["QID", "Title", "Hostname", "Zone", "Responsible_Team", "GRS", "Attack_Path_Ref"]
+    cols = ["QID", "Title", "Hostname", "Zone", "Responsible_Team", "GRS", "Category"]
     findings_table = df[cols].to_csv(index=False)
     context = (
-        f"{cmdb.summary_text(4000)}\n\nALL FINDINGS (CSV):\n{findings_table[:6000]}"
+        f"{cmdb.grounding_context(7000)}\n\nALL FINDINGS (CSV):\n{findings_table[:6000]}"
     )
     task = (
-        "Review the findings and CMDB together. Identify correlation insights an "
-        "operator would miss scanning the list top-to-bottom. Specifically: "
-        "(1) which findings, though not already in a documented Attack_Path_Ref chain, "
-        "still meaningfully raise organizational risk when considered together "
-        "(only claim this if you can point to a real mechanism — shared asset, "
-        "shared team, shared credential, network adjacency in the CMDB); "
+        "Reason over the findings together with the CMDB relationships above. The "
+        "CMDB gives you asset ownership, zone-to-zone reachability rules (some marked "
+        "Excessive = a misconfiguration that opens a boundary), credential-reuse "
+        "relationships, and host/app/db dependencies — but NOT any attack path. Derive "
+        "the correlations an operator scanning the list top-to-bottom would miss: "
+        "(1) which findings, considered together, meaningfully raise organizational "
+        "risk — only claim this when you can name the concrete mechanism that links "
+        "them (a shared credential from the identity table, an Excessive reachability "
+        "rule, a dependency or hosting relationship); "
         "(2) which teams are the top risk owners by aggregate exposure; "
-        "(3) any finding you believe is currently mis-prioritized relative to its "
-        "true blast radius. "
-        "Respond as JSON with keys: 'cross_findings_insights' (list of strings), "
+        "(3) any finding currently mis-prioritized relative to its true blast radius "
+        "(e.g. a 'low' finding on an asset that a credential relationship makes a pivot "
+        "into a crown jewel). "
+        "Respond as JSON with keys: 'cross_findings_insights' (list of strings, each "
+        "citing the QIDs and the linking mechanism), "
         "'top_risk_teams' (list of {team, rationale}), "
         "'reprioritization_flags' (list of {qid, hostname, reason})."
     )

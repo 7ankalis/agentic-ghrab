@@ -16,7 +16,7 @@ def narrate_chain(chain: Chain, cmdb: CMDB, session_state=None) -> dict:
         for s in chain.steps
     )
     context = (
-        f"{cmdb.summary_text(4000)}\n\nATTACK CHAIN {chain.path_id} — ground-truth "
+        f"{cmdb.grounding_context(4000)}\n\nATTACK CHAIN {chain.path_id} — ground-truth "
         f"steps (do not add or remove steps, only explain them):\n{steps_text}"
     )
     task = (
