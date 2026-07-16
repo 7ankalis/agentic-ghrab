@@ -34,9 +34,11 @@ export default {
         display: ["Space Grotesk", "Inter", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(0,0,0,0.4), 0 8px 30px rgba(0,0,0,0.25)",
+        // Depth swaps with the theme — see --shadow-* in index.css.
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
         glow: "0 0 0 1px rgba(85,161,133,0.35), 0 0 32px rgba(85,161,133,0.18)",
-        pop: "0 24px 60px rgba(0,0,0,0.55)",
+        pop: "var(--shadow-pop)",
       },
       keyframes: {
         "fade-up": {
@@ -63,6 +65,14 @@ export default {
           "0%": { opacity: "0", transform: "translateY(10px) scale(0.98)" },
           "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        "overlay-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "cmd-in": {
+          "0%": { opacity: "0", transform: "translateY(-8px) scale(0.97)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease both",
@@ -70,6 +80,8 @@ export default {
         "scan-x": "scan-x 2.2s linear infinite",
         "ring-pulse": "ring-pulse 2s ease-in-out infinite",
         "pop-in": "pop-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
+        "overlay-in": "overlay-in 0.2s ease both",
+        "cmd-in": "cmd-in 0.24s cubic-bezier(0.16,1,0.3,1) both",
       },
     },
   },

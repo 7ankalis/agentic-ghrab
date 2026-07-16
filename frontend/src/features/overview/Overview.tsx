@@ -3,6 +3,7 @@ import {
   Crosshair, GitBranch, Gem, ShieldAlert, Target, TrendingUp, Zap,
 } from "lucide-react";
 import { useOverview } from "@/lib/hooks";
+import { useCountUp } from "@/lib/useCountUp";
 import { bandColor, cx } from "@/lib/format";
 import { AiCard, BandPill, ExportButton, OfflineNotice, SectionTitle, Skeleton, Tag } from "@/components/ui";
 import { BandBar, RiskScatter } from "@/components/charts";
@@ -11,6 +12,11 @@ import { buildOverviewReport } from "@/lib/reportBuilders";
 import type { Band } from "@/lib/types";
 
 const ICONS = { total: Crosshair, immediate: ShieldAlert, avg: TrendingUp, kev: Zap, dora: Target, crown: Gem, paths: GitBranch };
+
+function AnimatedNumber({ value }: { value: number }) {
+  const v = useCountUp(value);
+  return <>{Number.isInteger(value) ? Math.round(v) : v.toFixed(1)}</>;
+}
 
 export default function Overview() {
   const { data, isLoading } = useOverview();
@@ -64,7 +70,7 @@ export default function Overview() {
                 style={{ background: `linear-gradient(90deg, ${t.accent ?? "rgb(var(--c-sage))"}, transparent)` }}
               />
               <Icon size={16} className="mb-2 text-ink-faint group-hover:text-sage-bright" style={t.accent ? { color: t.accent } : undefined} />
-              <div className="font-display text-3xl font-bold leading-none text-ink">{t.value}</div>
+              <div className="font-display text-3xl font-bold leading-none text-ink"><AnimatedNumber value={t.value} /></div>
               <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{t.label}</div>
               <div className="text-[11px] text-ink-faint">{t.sub}</div>
             </button>

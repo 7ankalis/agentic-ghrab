@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel,
   useReactTable, type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Search, Zap } from "lucide-react";
+import { ArrowUpDown, ChevronRight, RotateCcw, Search, Zap } from "lucide-react";
 import { useFindings } from "@/lib/hooks";
 import { bandColor, cx } from "@/lib/format";
+import { useToast } from "@/lib/toast";
 import { BandPill, ExportButton, SectionTitle, Skeleton } from "@/components/ui";
 import { downloadCSV, timestamp } from "@/lib/report";
 import { buildFindingsCSV } from "@/lib/reportBuilders";
@@ -17,12 +18,15 @@ const col = createColumnHelper<Finding>();
 
 export default function Findings() {
   const { data, isLoading } = useFindings();
+  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [selected, setSelected] = useState<number | null>(null);
   const [sorting, setSorting] = useState<SortingState>([{ id: "grs", desc: true }]);
   const [search, setSearch] = useState("");
   const [band, setBand] = useState<string>(params.get("band") ?? "");
   const [team, setTeam] = useState<string>("");
+  // Keyboard cursor into the visible rows (-1 = nothing highlighted yet).
+  const [activeRow, setActiveRow] = useState(-1);
 
   useEffect(() => {
     const qid = params.get("qid");
@@ -98,16 +102,70 @@ export default function Findings() {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const rows = table.getRowModel().rows;
+  const hasFilters = !!(search || band || team);
+
+  // Refs so a single stable keydown listener always reads current values.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const activeRef = useRef(activeRow);
+  activeRef.current = activeRow;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  // Reset the cursor whenever the visible set changes underfoot.
+  useEffect(() => setActiveRow(-1), [band, team, search, sorting]);
+
+  // ↑/↓ move the highlight, Enter opens it — the power-user path through a long
+  // findings queue. Suppressed while typing in a filter or with the drawer open.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (selectedRef.current != null) return;
+      const el = document.activeElement;
+      if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+      const rs = rowsRef.current;
+      if (rs.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveRow((i) => Math.min((i < 0 ? -1 : i) + 1, rs.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveRow((i) => Math.max((i < 0 ? rs.length : i) - 1, 0));
+      } else if (e.key === "Enter") {
+        const i = activeRef.current;
+        if (i >= 0 && i < rs.length) {
+          e.preventDefault();
+          setSelected(rs[i].original.qid);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Keep the highlighted row scrolled into view.
+  useEffect(() => {
+    if (activeRow < 0) return;
+    document.querySelector(`[data-row="${activeRow}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [activeRow]);
+
+  function resetFilters() {
+    setSearch("");
+    setBand("");
+    setTeam("");
+    setParams({});
+  }
+
+  function exportCsv() {
+    downloadCSV(`ghrab-voc-findings-${timestamp()}.csv`, buildFindingsCSV(filtered));
+    toast.success("Findings exported", `${filtered.length} row${filtered.length === 1 ? "" : "s"} saved as CSV.`);
+  }
+
   return (
     <div className="animate-fade-up">
       <SectionTitle
-        sub={`${filtered.length} of ${findings.length} findings · click any row to inspect`}
-        right={
-          <ExportButton
-            label="Export CSV"
-            onClick={() => downloadCSV(`ghrab-voc-findings-${timestamp()}.csv`, buildFindingsCSV(filtered))}
-          />
-        }
+        sub={`${filtered.length} of ${findings.length} findings · use ↑ ↓ to move, ↵ to inspect`}
+        right={<ExportButton label="Export CSV" onClick={exportCsv} />}
       >
         Vulnerability Findings
       </SectionTitle>
@@ -125,22 +183,27 @@ export default function Findings() {
           <option value="">All teams</option>
           {teams.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
+        {hasFilters && (
+          <button onClick={resetFilters} className="btn-ghost !px-3 !py-1.5 text-xs">
+            <RotateCcw size={12} /> Reset
+          </button>
+        )}
       </div>
 
       {isLoading ? (
         <Skeleton className="h-96" />
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="max-h-[calc(100vh-290px)] min-h-[280px] overflow-auto">
             <table className="w-full text-left">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-surface">
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id} className="border-b border-line">
                     {hg.headers.map((h) => (
                       <th
                         key={h.id}
                         onClick={h.column.getToggleSortingHandler()}
-                        className="cursor-pointer select-none px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted"
+                        className="cursor-pointer select-none whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint hover:text-ink-muted"
                       >
                         <span className="inline-flex items-center gap-1">
                           {flexRender(h.column.columnDef.header, h.getContext())}
@@ -150,25 +213,47 @@ export default function Findings() {
                         </span>
                       </th>
                     ))}
+                    <th className="w-8 bg-surface" />
                   </tr>
                 ))}
               </thead>
               <tbody>
-                {table.getRowModel().rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => setSelected(r.original.qid)}
-                    className="cursor-pointer border-b border-line/60 transition last:border-0 hover:bg-surface-2/70"
-                  >
-                    {r.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-2.5">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                    ))}
-                  </tr>
-                ))}
+                {rows.map((r, i) => {
+                  const isActive = i === activeRow;
+                  return (
+                    <tr
+                      key={r.id}
+                      data-row={i}
+                      onClick={() => setSelected(r.original.qid)}
+                      onMouseEnter={() => setActiveRow(i)}
+                      className={cx(
+                        "group cursor-pointer border-b border-line/60 transition-colors last:border-0",
+                        isActive ? "bg-sage/[0.07]" : "hover:bg-surface-2/70",
+                      )}
+                    >
+                      {r.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-2.5">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                      ))}
+                      <td className="w-8 pr-3 text-right">
+                        <ChevronRight
+                          size={15}
+                          className={cx(
+                            "inline-block text-sage-bright transition-all",
+                            isActive ? "translate-x-0 opacity-100" : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-60",
+                          )}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && <div className="p-8 text-center text-sm text-ink-muted">No findings match the current filters.</div>}
+          {filtered.length === 0 && (
+            <div className="p-8 text-center text-sm text-ink-muted">
+              No findings match the current filters.
+            </div>
+          )}
         </div>
       )}
 

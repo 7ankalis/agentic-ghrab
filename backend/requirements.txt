@@ -5,3 +5,4 @@ pandas>=2.2
 networkx>=3.3
 litellm>=1.51
 python-dotenv>=1.0
+sqlalchemy>=2.0

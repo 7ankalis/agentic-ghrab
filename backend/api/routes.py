@@ -6,13 +6,50 @@ from pydantic import BaseModel
 
 from agents.remediation_agent import enrich_remediation
 from api import serializers as S
-from api.state import get_analysis, invalidate, runtime_settings
+from api.state import get_analysis, invalidate, runtime_settings, switch_dataset
+from core import datasets as datasets_mod
 from core.config import (
     AGENT_ROLE_LABELS, AGENT_ROLES, DEFAULT_AGENT_PROVIDER, PROVIDERS,
     configured_providers,
 )
 
 router = APIRouter(prefix="/api")
+
+
+# ---- Datasets / enterprise selection ----
+def _dataset_json(d, active_key: str) -> dict:
+    return {
+        "key": d.key, "name": d.name, "sector": d.sector,
+        "frameworks": d.frameworks, "findings": d.findings,
+        "has_architecture": d.has_architecture, "active": d.key == active_key,
+    }
+
+
+@router.get("/datasets")
+def list_datasets():
+    """Every enterprise that can be scanned (has both a *_vulnerabilities.csv and
+    a *_architecture.md in the data dir), plus which one is currently active."""
+    active = datasets_mod.get_active()
+    return {
+        "active": active.key,
+        "datasets": [_dataset_json(d, active.key) for d in datasets_mod.discover()],
+    }
+
+
+class DatasetSelect(BaseModel):
+    key: str
+
+
+@router.post("/datasets/select")
+def select_dataset(body: DatasetSelect):
+    """Set the active enterprise. Flushes the cached data + analysis so the next
+    load rebuilds against the chosen dataset; the operator then runs the pipeline
+    from the existing Full Analysis / Re-run controls."""
+    try:
+        ds = switch_dataset(body.key)
+    except KeyError:
+        raise HTTPException(404, f"Unknown dataset {body.key!r}")
+    return {"ok": True, "active": ds.key, "name": ds.name}
 
 
 @router.get("/overview")

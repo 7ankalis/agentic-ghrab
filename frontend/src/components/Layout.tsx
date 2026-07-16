@@ -1,20 +1,29 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Circle,
+  Activity, AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronUp, Circle,
   Database, FileDown, FileText, GitBranch, LayoutDashboard, Loader2,
-  MessageSquare, Moon, RefreshCw, Network, ScrollText, Settings as SettingsIcon,
+  MessageSquare, Moon, Power, RefreshCw, Network, ScrollText, Search, Settings as SettingsIcon,
   ShieldCheck, Share2, Sparkles, Sun, Tags, Terminal, Users, XCircle, Zap,
 } from "lucide-react";
 import { api, streamSSE } from "@/lib/api";
 import { useAgentLog } from "@/lib/agentLog";
-import { useKpis } from "@/lib/hooks";
+import { useDatasets, useKpis } from "@/lib/hooks";
 import { useTheme } from "@/lib/theme";
+import { useToast } from "@/lib/toast";
 import { AGENT_LABELS, cx } from "@/lib/format";
 import { downloadMarkdown, timestamp } from "@/lib/report";
 import { buildFullReport } from "@/lib/reportBuilders";
+import type { RunSummary } from "@/lib/types";
 import AiDock from "./AiDock";
+import CommandPalette, { type Command } from "./CommandPalette";
+import DatasetPicker from "./DatasetPicker";
+
+// Presentation-only shortcut glyph — ⌘ on Apple platforms, Ctrl elsewhere.
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform);
+const MOD_KEY = IS_MAC ? "⌘" : "Ctrl";
 
 const NAV = [
   { to: "/", label: "Command Center", icon: LayoutDashboard, end: true },
@@ -73,11 +82,40 @@ function formatElapsed(ms: number): string {
 
 export default function Layout() {
   const qc = useQueryClient();
+  const nav = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
   const { data: kpis } = useKpis();
+  const { data: datasets } = useDatasets();
+  const [theme, toggleTheme] = useTheme();
   const [running, setRunning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState<ProgressLine[]>([]);
+  const [duplicateRun, setDuplicateRun] = useState<RunSummary | null>(null);
+  const [reusing, setReusing] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const aiOn = kpis?.ai_enabled ?? false;
+  const activeEnterprise = datasets?.datasets.find((d) => d.active);
+
+  // Global ⌘K / Ctrl+K toggles the command palette from anywhere.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((o) => !o);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Land at the top of every view on navigation — long pages (Findings, Logs)
+  // otherwise keep the prior scroll offset and open mid-content.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   function settlePrior(lines: ProgressLine[]): ProgressLine[] {
     return lines.map((l) => (l.status === "active" ? { ...l, status: "done" } : l));
@@ -102,7 +140,12 @@ export default function Layout() {
 
   async function runAnalysis(force: boolean) {
     setRunning(true);
+    setCancelling(false);
     setProgress([]);
+    let sawDuplicate = false;
+    // Held on an object so the SSE callback's writes survive TS control-flow
+    // narrowing — a plain `let` would be narrowed to its initial literal.
+    const result = { outcome: "done" as "done" | "error" | "cancelled" };
     try {
       await streamSSE("/analyze", { force_refresh: force }, (event, data) => {
         if (event === "progress") {
@@ -111,15 +154,65 @@ export default function Layout() {
         } else if (event === "done") {
           setProgress((p) => settlePrior(p));
         } else if (event === "error") {
+          result.outcome = "error";
           setProgress((p) => [...settlePrior(p), { message: data.message, level: "error", status: "done" }]);
+        } else if (event === "cancelled") {
+          result.outcome = "cancelled";
+          setProgress((p) => [...settlePrior(p), { message: data.message, level: "warn", status: "done" }]);
+        } else if (event === "duplicate") {
+          sawDuplicate = true;
+          setDuplicateRun(data.run as RunSummary);
         }
       });
     } catch (e: any) {
+      result.outcome = "error";
       setProgress((p) => [...settlePrior(p), { message: `Error: ${e.message}`, level: "error", status: "done" }]);
     } finally {
-      await qc.invalidateQueries();
-      setTimeout(() => setRunning(false), 900);
+      setCancelling(false);
+      if (sawDuplicate) {
+        setRunning(false);
+      } else {
+        await qc.invalidateQueries();
+        if (result.outcome === "done") {
+          toast.success("Analysis complete", "Findings, attack paths, and correlations are up to date.");
+        } else if (result.outcome === "cancelled") {
+          toast.info("Analysis stopped", "The pipeline was halted at the next agent boundary.");
+        } else {
+          toast.error("Analysis failed", "Check the Agent Logs for the failing step.");
+        }
+        setTimeout(() => setRunning(false), 900);
+      }
     }
+  }
+
+  // Operator kill switch: tell the server to stop the in-flight run. The pipeline
+  // halts at its next agent boundary and the SSE stream emits `cancelled`, which
+  // settles the overlay and flips `running` off via runAnalysis's finally block.
+  async function cancelRun() {
+    setCancelling(true);
+    try {
+      await api.cancelAnalysis();
+    } catch {
+      setCancelling(false);
+    }
+  }
+
+  async function reuseDuplicate() {
+    if (!duplicateRun) return;
+    setReusing(true);
+    try {
+      await api.reuseRun(duplicateRun.id);
+      await qc.invalidateQueries();
+      toast.success("Reusing previous results", "Loaded the last analysis of this dataset.");
+    } finally {
+      setReusing(false);
+      setDuplicateRun(null);
+    }
+  }
+
+  function refreshAnyway() {
+    setDuplicateRun(null);
+    runAnalysis(true);
   }
 
   async function exportFullReport() {
@@ -136,11 +229,70 @@ export default function Layout() {
         teams: teamsRes.teams,
         compliance: complianceRes.compliance,
       });
-      downloadMarkdown(`ghrab-voc-full-report-${timestamp()}.md`, md);
+      downloadMarkdown(`${activeEnterprise?.key ?? "voc"}-full-report-${timestamp()}.md`, md);
+      toast.success("Full report exported", "Markdown saved to your downloads.");
+    } catch (e: any) {
+      toast.error("Export failed", e?.message ?? "Could not build the report.");
     } finally {
       setExporting(false);
     }
   }
+
+  const commands: Command[] = [
+    ...NAV.map((n) => ({
+      id: `nav:${n.to}`,
+      label: n.label,
+      section: "Navigate",
+      icon: n.icon,
+      keywords: "go open view page",
+      perform: () => nav(n.to),
+    })),
+    {
+      id: "action:enterprise",
+      label: "Switch enterprise to scan",
+      section: "Actions",
+      icon: Building2,
+      keywords: "dataset company organization select scan target choose",
+      hint: activeEnterprise?.name,
+      perform: () => setPickerOpen(true),
+    },
+    {
+      id: "action:full",
+      label: "Run full analysis",
+      section: "Actions",
+      icon: Activity,
+      keywords: "re-run pipeline agents refresh scan",
+      hint: running ? "running…" : undefined,
+      disabled: running,
+      perform: () => runAnalysis(true),
+    },
+    {
+      id: "action:rerun",
+      label: "Re-run (reuse cache)",
+      section: "Actions",
+      icon: RefreshCw,
+      keywords: "refresh incremental",
+      disabled: running,
+      perform: () => runAnalysis(false),
+    },
+    {
+      id: "action:export",
+      label: "Export full report",
+      section: "Actions",
+      icon: FileDown,
+      keywords: "download markdown pdf save",
+      disabled: exporting,
+      perform: exportFullReport,
+    },
+    {
+      id: "action:theme",
+      label: theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+      section: "Preferences",
+      icon: theme === "dark" ? Sun : Moon,
+      keywords: "dark light appearance color mode",
+      perform: toggleTheme,
+    },
+  ];
 
   return (
     <div className="flex min-h-screen">
@@ -165,7 +317,7 @@ export default function Layout() {
               end={end}
               className={({ isActive }) =>
                 cx(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
                   isActive
                     ? "bg-sage/12 text-ink shadow-[inset_0_0_0_1px_rgba(85,161,133,0.25)]"
                     : "text-ink-muted hover:bg-surface-2 hover:text-ink",
@@ -174,7 +326,19 @@ export default function Layout() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={17} className={cx(isActive ? "text-sage-bright" : "text-ink-faint group-hover:text-ink-muted")} />
+                  <span
+                    className={cx(
+                      "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-sage-bright transition-all duration-200",
+                      isActive ? "opacity-100" : "opacity-0 -translate-x-1",
+                    )}
+                  />
+                  <Icon
+                    size={17}
+                    className={cx(
+                      "transition-transform duration-200 group-hover:scale-110",
+                      isActive ? "text-sage-bright" : "text-ink-faint group-hover:text-ink-muted",
+                    )}
+                  />
                   {label}
                 </>
               )}
@@ -203,40 +367,94 @@ export default function Layout() {
               Vulnerability Operations Center
             </h1>
             <p className="text-xs text-ink-faint">
-              Ghrab Financial Group · {kpis ? `${kpis.total} findings · ${kpis.discovered_paths} attack paths discovered` : "loading…"}
+              {activeEnterprise?.name ?? "No enterprise selected"} · {kpis ? `${kpis.total} findings · ${kpis.discovered_paths} attack paths discovered` : "loading…"}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPickerOpen(true)}
+              title="Switch enterprise to scan"
+              className="group flex items-center gap-2 rounded-lg border border-line bg-surface-2/60 py-1.5 pl-2.5 pr-3 text-xs font-medium text-ink-muted transition hover:border-line-strong hover:text-ink"
+            >
+              <Building2 size={14} className="text-sage-bright" />
+              <span className="max-w-[140px] truncate">{activeEnterprise?.name ?? "Select enterprise"}</span>
+            </button>
+            <button
+              onClick={() => setCmdOpen(true)}
+              title="Command palette"
+              className="group hidden items-center gap-2 rounded-lg border border-line bg-surface-2/60 py-1.5 pl-2.5 pr-2 text-xs text-ink-faint transition hover:border-line-strong hover:text-ink-muted md:flex"
+            >
+              <Search size={14} />
+              <span>Search…</span>
+              <kbd className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-faint transition-colors group-hover:text-ink-muted">
+                {MOD_KEY} K
+              </kbd>
+            </button>
             <AgentActivityPill />
             <button className="btn-ghost" onClick={exportFullReport} disabled={exporting}>
               {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
               Full Report
             </button>
-            <button className="btn-ghost" onClick={() => runAnalysis(false)} disabled={running}>
-              {running ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-              Re-run
-            </button>
-            <button className="btn-primary" onClick={() => runAnalysis(true)} disabled={running}>
-              {running ? <Loader2 size={15} className="animate-spin" /> : <Activity size={15} />}
-              Full Analysis
-            </button>
+            {running ? (
+              <KillSwitch onKill={cancelRun} cancelling={cancelling} />
+            ) : (
+              <>
+                <button className="btn-ghost" onClick={() => runAnalysis(false)}>
+                  <RefreshCw size={15} />
+                  Re-run
+                </button>
+                <button className="btn-primary" onClick={() => runAnalysis(true)}>
+                  <Activity size={15} />
+                  Full Analysis
+                </button>
+              </>
+            )}
           </div>
         </header>
 
         <main className="flex-1 px-8 py-7">
           <div className="mx-auto max-w-[1400px]">
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
 
-      {running && <ProgressOverlay lines={progress} />}
+      {running && !duplicateRun && (
+        <ProgressOverlay lines={progress} onKill={cancelRun} cancelling={cancelling} />
+      )}
+      {duplicateRun && (
+        <DuplicateRunCard
+          run={duplicateRun}
+          reusing={reusing}
+          onReuse={reuseDuplicate}
+          onRefresh={refreshAnyway}
+          onDismiss={() => setDuplicateRun(null)}
+        />
+      )}
       <AiDock aiOn={aiOn} />
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} commands={commands} />
+      <DatasetPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   );
 }
 
-function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
+function ProgressOverlay({
+  lines, onKill, cancelling,
+}: {
+  lines: ProgressLine[];
+  onKill: () => void;
+  cancelling: boolean;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -257,6 +475,8 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
     -1,
   );
   const isComplete = /analysis complete/i.test(lines[lines.length - 1]?.message ?? "");
+  const wasCancelled = lines.some((l) => /stopped by operator/i.test(l.message));
+  const stoppable = !isComplete && !hasError && !wasCancelled;
   const pct = Math.max(4, Math.min(100, Math.round(((stageIndex + 1) / CORE_STAGES.length) * 100)));
   const activeLine = [...lines].reverse().find((l) => l.status === "active");
 
@@ -286,7 +506,7 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
           <div
             className={cx(
               "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors",
-              hasError
+              hasError || wasCancelled
                 ? "bg-immediate/15"
                 : isComplete
                 ? "bg-sage/20"
@@ -295,6 +515,8 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
           >
             {hasError ? (
               <AlertTriangle size={16} className="text-immediate" />
+            ) : wasCancelled ? (
+              <Power size={16} className="text-immediate" />
             ) : isComplete ? (
               <CheckCircle2 size={16} className="text-sage-bright" />
             ) : (
@@ -304,7 +526,15 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold text-ink">
-                {hasError ? "Pipeline hit a snag" : isComplete ? "Analysis complete" : "Running analysis pipeline"}
+                {hasError
+                  ? "Pipeline hit a snag"
+                  : wasCancelled
+                  ? "Analysis stopped"
+                  : isComplete
+                  ? "Analysis complete"
+                  : cancelling
+                  ? "Stopping analysis…"
+                  : "Running analysis pipeline"}
               </span>
               <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-faint">
                 {formatElapsed(elapsed)}
@@ -314,6 +544,21 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
               {activeLine?.message ?? lines[lines.length - 1]?.message ?? "Warming up…"}
             </div>
           </div>
+          {stoppable && (
+            <button
+              onClick={onKill}
+              disabled={cancelling}
+              title="Kill switch — stop every running agent"
+              className={cx(
+                "shrink-0 rounded-md p-1.5 transition",
+                cancelling
+                  ? "cursor-wait text-immediate"
+                  : "text-immediate/80 hover:bg-immediate/15 hover:text-immediate",
+              )}
+            >
+              {cancelling ? <Loader2 size={15} className="animate-spin" /> : <Power size={15} />}
+            </button>
+          )}
           <button
             onClick={() => setCollapsed((c) => !c)}
             className="shrink-0 rounded-md p-1 text-ink-faint transition hover:bg-surface-2 hover:text-ink"
@@ -399,6 +644,58 @@ function ProgressOverlay({ lines }: { lines: ProgressLine[] }) {
   );
 }
 
+function DuplicateRunCard({
+  run, reusing, onReuse, onRefresh, onDismiss,
+}: {
+  run: RunSummary;
+  reusing: boolean;
+  onReuse: () => void;
+  onRefresh: () => void;
+  onDismiss: () => void;
+}) {
+  const when = run.completed_at
+    ? new Date(run.completed_at * 1000).toLocaleString(undefined, {
+        dateStyle: "medium", timeStyle: "short",
+      })
+    : "recently";
+  const total = "total" in run.kpi_snapshot ? (run.kpi_snapshot as any).total : undefined;
+
+  return (
+    <div className="fixed bottom-6 left-1/2 z-50 w-[480px] max-w-[92vw] -translate-x-1/2 animate-pop-in">
+      <div className="card overflow-hidden border-line-strong shadow-pop">
+        <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sage/20">
+            <Database size={16} className="text-sage-bright" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-ink">
+              Nothing's changed since the last run
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-faint">
+              This exact dataset was already analyzed on <span className="text-ink-muted">{when}</span>
+              {total !== undefined && <> — {total} findings{run.ai_enabled ? ", AI-enriched" : ""}</>}.
+              Reuse those results instantly, or refresh to re-run the full agent chain anyway.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-line px-4 py-3">
+          <button className="btn-ghost" onClick={onDismiss} disabled={reusing}>
+            Dismiss
+          </button>
+          <button className="btn-ghost" onClick={onRefresh} disabled={reusing}>
+            <RefreshCw size={14} />
+            Refresh anyway
+          </button>
+          <button className="btn-primary" onClick={onReuse} disabled={reusing}>
+            {reusing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            Reuse results
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ThemeToggle() {
   const [theme, toggle] = useTheme();
   const isDark = theme === "dark";
@@ -425,6 +722,38 @@ function ThemeToggle() {
           )}
         />
       </span>
+    </button>
+  );
+}
+
+function KillSwitch({ onKill, cancelling }: { onKill: () => void; cancelling: boolean }) {
+  return (
+    <button
+      onClick={onKill}
+      disabled={cancelling}
+      title="Kill switch — stop every running agent"
+      className={cx(
+        "group relative flex items-center gap-2 overflow-hidden rounded-lg border px-3.5 py-1.5 text-sm font-semibold transition-all",
+        cancelling
+          ? "cursor-wait border-immediate/40 bg-immediate/10 text-immediate"
+          : "border-immediate/60 bg-immediate/15 text-immediate shadow-[0_0_0_1px_rgba(220,60,60,0.15)] hover:bg-immediate/25 hover:shadow-glow",
+      )}
+    >
+      {/* live sweep so it reads as an active, interruptible process */}
+      {!cancelling && (
+        <span className="pointer-events-none absolute inset-y-0 left-0 w-1/3 animate-scan-x bg-gradient-to-r from-transparent via-immediate/25 to-transparent" />
+      )}
+      <span className="relative grid h-4 w-4 place-items-center">
+        {cancelling ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : (
+          <>
+            <span className="absolute inset-0 rounded-full bg-immediate/30 animate-ring-pulse" />
+            <Power size={15} className="relative" />
+          </>
+        )}
+      </span>
+      <span className="relative">{cancelling ? "Stopping…" : "Kill switch"}</span>
     </button>
   );
 }

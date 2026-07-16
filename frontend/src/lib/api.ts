@@ -1,6 +1,7 @@
 import type {
-  AttackPathsResponse, Compliance, Correlation, FindingDetail, GraphPayload,
-  Kpis, LogEntry, Overview, ProvidersResponse, Remediation, TeamStat,
+  AttackPathsResponse, Compliance, Correlation, DatasetsResponse, FindingDetail,
+  GraphPayload, Kpis, LogEntry, Overview, ProvidersResponse, Remediation,
+  RunSummary, TeamStat,
 } from "./types";
 import type { Finding } from "./types";
 
@@ -39,6 +40,9 @@ export const api = {
   correlation: () => get<{ correlation: Correlation; ai_enabled: boolean }>("/correlation"),
   compliance: () => get<{ compliance: Compliance; ai_enabled: boolean }>("/compliance"),
   teams: () => get<{ teams: TeamStat[] }>("/teams"),
+  datasets: () => get<DatasetsResponse>("/datasets"),
+  selectDataset: (key: string) =>
+    post<{ ok: boolean; active: string; name: string }>("/datasets/select", { key }),
   providers: () => get<ProvidersResponse>("/settings/providers"),
   setProvider: (provider: string, api_key: string) =>
     post<{ ok: boolean }>("/settings/providers", { provider, api_key }),
@@ -50,6 +54,11 @@ export const api = {
     get<{ running: boolean; lines: { event: string; message: string; level: string }[] }>(
       "/analyze/status",
     ),
+  cancelAnalysis: () => post<{ ok: boolean; running: boolean }>("/analyze/cancel"),
+  reuseRun: (runId: string) => post<{ ok: boolean; kpis: Kpis }>(`/analyze/reuse/${runId}`),
+  runs: () => get<{ runs: RunSummary[] }>("/analyze/runs"),
+  deleteRun: (runId: string) => del<{ ok: boolean }>(`/analyze/runs/${runId}`),
+  clearRuns: () => del<{ ok: boolean; deleted: number }>("/analyze/runs"),
 };
 
 /**

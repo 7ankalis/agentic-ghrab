@@ -31,6 +31,15 @@
     --scroll-thumb: rgba(0, 60, 48, 0.18);
     --scroll-thumb-strong: rgba(0, 60, 48, 0.28);
     --shimmer: rgba(0, 60, 48, 0.06);
+    /* Depth is tuned per-theme: soft, tinted ambient shadows read as premium
+     * on the cream surface, where flat black would look muddy. */
+    --shadow-card: 0 1px 2px rgba(20, 40, 33, 0.04), 0 4px 14px rgba(20, 40, 33, 0.06),
+      0 14px 34px rgba(20, 40, 33, 0.05);
+    --shadow-card-hover: 0 2px 4px rgba(20, 40, 33, 0.05), 0 10px 24px rgba(20, 40, 33, 0.09),
+      0 22px 48px rgba(20, 40, 33, 0.08);
+    --shadow-pop: 0 8px 24px rgba(20, 40, 33, 0.1), 0 28px 64px rgba(20, 40, 33, 0.18);
+    --focus-ring: rgba(20, 108, 84, 0.45);
+    --selection: rgba(85, 161, 133, 0.28);
   }
   [data-theme="dark"] {
     color-scheme: dark;
@@ -58,11 +67,20 @@
     --scroll-thumb: rgba(140, 175, 160, 0.22);
     --scroll-thumb-strong: rgba(140, 175, 160, 0.32);
     --shimmer: rgba(140, 175, 160, 0.08);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 30px rgba(0, 0, 0, 0.25);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 44px rgba(0, 0, 0, 0.4);
+    --shadow-pop: 0 24px 60px rgba(0, 0, 0, 0.55);
+    --focus-ring: rgba(127, 208, 173, 0.55);
+    --selection: rgba(85, 161, 133, 0.32);
   }
   html,
   body,
   #root {
     height: 100%;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
   }
   body {
     @apply bg-base text-ink font-sans antialiased transition-colors duration-200;
@@ -70,7 +88,43 @@
       radial-gradient(1200px 600px at 88% -10%, var(--glow-1), transparent 60%),
       radial-gradient(900px 500px at 0% 0%, var(--glow-2), transparent 55%);
     background-attachment: fixed;
+    /* Kill the mobile/webkit grey flash on every tap — reads as unpolished. */
+    -webkit-tap-highlight-color: transparent;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
   }
+
+  /* Brand-tinted text selection instead of the OS default blue. */
+  ::selection {
+    background: var(--selection);
+    color: rgb(var(--c-ink));
+  }
+
+  /* Interactive elements advertise themselves. Native controls already do this;
+   * this covers custom button/role targets and keeps disabled honest. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* One consistent, keyboard-only focus ring across the whole app. Pointer
+   * clicks stay ring-free; tab navigation lights up clearly. */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scroll-thumb) transparent;
@@ -84,6 +138,13 @@
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
+    transition: background 0.2s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scroll-thumb-strong);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
@@ -98,14 +159,15 @@
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold
+      transition-[background,border-color,color,box-shadow,transform] duration-150 ease-out
+      active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-primary {
     @apply btn bg-sage text-forest hover:bg-sage-bright hover:shadow-glow;
   }
   .btn-ghost {
-    @apply btn border border-line text-ink-muted hover:border-line-strong hover:text-ink;
+    @apply btn border border-line text-ink-muted hover:border-line-strong hover:text-ink hover:bg-surface-2/60;
   }
   .input {
     @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink
@@ -123,6 +185,24 @@
     background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
     animation: shimmer 1.4s infinite;
     transform: translateX(-100%);
+  }
+}
+
+/* Respect the OS "reduce motion" setting across the whole app: neutralize
+ * decorative transitions/animations and instant-scroll, but keep functional
+ * loading spinners turning — a frozen spinner reads as a hung request. Framer
+ * Motion is handled separately via <MotionConfig reducedMotion="user">. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation: spin 1s linear infinite !important;
   }
 }
 

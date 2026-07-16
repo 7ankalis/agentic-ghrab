@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from core.config import ARCHITECTURE_MD_PATH
+from core.config import active_architecture_md
 
 
 @dataclass
@@ -85,7 +85,9 @@ class CMDB:
         self.attack_paths: list[AttackPath] = []
         self.raw_markdown: str = ""
 
-    def load(self, path=ARCHITECTURE_MD_PATH) -> "CMDB":
+    def load(self, path=None) -> "CMDB":
+        if path is None:
+            path = active_architecture_md()
         text = path.read_text(encoding="utf-8")
         self.raw_markdown = text
         # Two known doc shapes: the legacy "## 3. Asset Inventory" prose-table
@@ -358,3 +360,10 @@ def get_cmdb() -> CMDB:
     if _cmdb_singleton is None:
         _cmdb_singleton = CMDB().load()
     return _cmdb_singleton
+
+
+def reset_cmdb() -> None:
+    """Drop the parsed CMDB so the next access re-parses the (now different)
+    active dataset's architecture doc. Called when the operator switches enterprise."""
+    global _cmdb_singleton
+    _cmdb_singleton = None

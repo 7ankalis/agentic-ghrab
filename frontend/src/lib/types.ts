@@ -1,5 +1,16 @@
 export type Band = "IMMEDIATE" | "ACT" | "ATTEND" | "TRACK*" | "TRACK";
 
+export interface RunSummary {
+  id: string;
+  dataset_key: string;
+  status: "running" | "complete" | "failed";
+  ai_enabled: boolean;
+  started_at: number;
+  completed_at: number | null;
+  kpi_snapshot: Kpis | Record<string, never>;
+  error: string | null;
+}
+
 export interface LogEntry {
   id: number;
   ts: number;
@@ -226,4 +237,19 @@ export interface AgentAssignment {
 export interface ProvidersResponse {
   providers: ProviderInfo[];
   agents: AgentAssignment[];
+}
+
+export interface DatasetInfo {
+  key: string;
+  name: string;
+  sector: string;
+  frameworks: string;
+  findings: number;
+  has_architecture: boolean;
+  active: boolean;
+}
+
+export interface DatasetsResponse {
+  active: string;
+  datasets: DatasetInfo[];
 }

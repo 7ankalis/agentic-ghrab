@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .env
 backend/data/cache/
+backend/data/*.db
 
 frontend/certs/
 

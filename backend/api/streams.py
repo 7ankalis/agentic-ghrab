@@ -5,13 +5,18 @@ import asyncio
 import queue
 import threading
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from agents.orchestrator import RunCancelled
 from agents.triage_agent import answer_question
+from api import serializers as S
+from api import state
 from api.sse import SSE_HEADERS, sse as _sse
-from api.state import get_analysis, invalidate, runtime_settings
+from api.state import get_analysis, runtime_settings
+from core.config import active_dataset_key
+from db import repository
 
 router = APIRouter(prefix="/api")
 
@@ -34,6 +39,7 @@ class _RunBroadcast:
         self.running = False
         self.lines: list[dict] = []  # progress lines emitted so far by the current/last run
         self.subscribers: list[queue.Queue] = []
+        self.cancel_event = threading.Event()
 
     def start(self, force_refresh: bool) -> None:
         with self.lock:
@@ -41,10 +47,20 @@ class _RunBroadcast:
                 return
             self.running = True
             self.lines = []
+            self.cancel_event.clear()
         threading.Thread(target=self._work, args=(force_refresh,), daemon=True).start()
 
-    def _emit(self, event: str, message: str, level: str = "info") -> None:
-        line = {"event": event, "message": message, "level": level}
+    def cancel(self) -> bool:
+        """Operator kill switch: signals the in-flight run to stop at its next
+        agent boundary. Returns whether a run was actually in flight."""
+        with self.lock:
+            if not self.running:
+                return False
+            self.cancel_event.set()
+        return True
+
+    def _emit(self, event: str, message: str, level: str = "info", **extra) -> None:
+        line = {"event": event, "message": message, "level": level, **extra}
         with self.lock:
             self.lines.append(line)
             subs = list(self.subscribers)
@@ -53,12 +69,24 @@ class _RunBroadcast:
 
     def _work(self, force_refresh: bool) -> None:
         try:
-            invalidate()
-            get_analysis(
+            # Byte-identical input to the last completed run? Don't touch the
+            # agent chain — hand the caller enough to offer reuse-vs-refresh.
+            duplicate = state.check_duplicate(force_refresh)
+            if duplicate is not None:
+                self._emit(
+                    "duplicate",
+                    "This exact dataset was already analyzed — reuse it or refresh?",
+                    "info", run=duplicate,
+                )
+                return
+            state.run_new_analysis(
                 force_refresh=force_refresh,
                 progress_cb=lambda m, level="info": self._emit("progress", m, level),
+                should_cancel=self.cancel_event.is_set,
             )
             self._emit("done", "Analysis complete", "info")
+        except RunCancelled:
+            self._emit("cancelled", "Analysis stopped by operator", "warn")
         except Exception as exc:  # noqa: BLE001
             self._emit("error", str(exc), "error")
         finally:
@@ -100,21 +128,74 @@ async def analyze(body: AnalyzeBody):
     _broadcast.start(body.force_refresh)
     q, backlog = _broadcast.subscribe()
 
+    def _payload(line: dict) -> dict:
+        return {k: v for k, v in line.items() if k != "event"}
+
     async def gen():
         try:
             for line in backlog:
-                yield _sse(line["event"], {"message": line["message"], "level": line["level"]})
-                if line["event"] in ("done", "error"):
+                yield _sse(line["event"], _payload(line))
+                if line["event"] in ("done", "error", "duplicate", "cancelled"):
                     return
             while True:
                 line = await asyncio.to_thread(q.get)
-                yield _sse(line["event"], {"message": line["message"], "level": line["level"]})
-                if line["event"] in ("done", "error"):
+                yield _sse(line["event"], _payload(line))
+                if line["event"] in ("done", "error", "duplicate", "cancelled"):
                     break
         finally:
             _broadcast.unsubscribe(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@router.post("/analyze/cancel")
+def cancel_analysis():
+    """Operator kill switch. Signals the in-flight run to stop at its next
+    agent boundary; the SSE stream then emits a `cancelled` event. Idempotent —
+    a no-op (with running=False) when nothing is currently in flight."""
+    was_running = _broadcast.cancel()
+    return {"ok": True, "running": was_running}
+
+
+@router.post("/analyze/reuse/{run_id}")
+def reuse_analysis(run_id: str):
+    """Adopts a previously persisted run as the active analysis — the
+    'reuse previous results' side of the duplicate-detection card. Never
+    touches the agent chain."""
+    try:
+        result = state.reuse_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"ok": True, "kpis": S.kpis(result)}
+
+
+@router.get("/analyze/runs")
+def list_runs():
+    """Run history for the active dataset — findings history / trend data,
+    lightweight enough to list without touching the AI blobs."""
+    return {"runs": [r.summary() for r in repository.list_runs(active_dataset_key())]}
+
+
+@router.delete("/analyze/runs/{run_id}")
+def delete_run(run_id: str):
+    """Deletes one persisted run's history. If it was the active run, the
+    in-memory analysis is dropped too — the next request cold-hydrates from
+    whatever's now the latest surviving run (or comes up blank)."""
+    ok = repository.delete_run(run_id)
+    if not ok:
+        raise HTTPException(404, f"Run {run_id!r} not found")
+    if state.current_run_id() == run_id:
+        state.invalidate()
+    return {"ok": True}
+
+
+@router.delete("/analyze/runs")
+def clear_runs():
+    """Wipes all persisted history for the active dataset and drops the
+    in-memory analysis. A fresh Full Analysis starts clean."""
+    n = repository.delete_all_runs(active_dataset_key())
+    state.invalidate()
+    return {"ok": True, "deleted": n}
 
 
 class ChatBody(BaseModel):

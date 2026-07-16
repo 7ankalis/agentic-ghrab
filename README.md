@@ -70,6 +70,11 @@ uvicorn main:app --reload --port 8000
 The API serves on `http://localhost:8000` (`/api/health`, interactive docs at
 `/docs`). It runs fully in deterministic mode with no API keys.
 
+Analysis runs persist to a SQLite database at `backend/data/voc.db`, created
+automatically on first startup — nothing to install or migrate by hand. Point
+`DATABASE_URL` at a Postgres instance instead if you need multi-instance/prod
+deployment; the app code doesn't change either way.
+
 ### 2. Frontend
 
 ```bash

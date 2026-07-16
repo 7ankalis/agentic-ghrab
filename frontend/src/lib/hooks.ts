@@ -11,4 +11,6 @@ export const useGraph = () => useQuery({ queryKey: ["graph"], queryFn: api.graph
 export const useCorrelation = () => useQuery({ queryKey: ["correlation"], queryFn: api.correlation });
 export const useCompliance = () => useQuery({ queryKey: ["compliance"], queryFn: api.compliance });
 export const useTeams = () => useQuery({ queryKey: ["teams"], queryFn: api.teams });
+export const useDatasets = () => useQuery({ queryKey: ["datasets"], queryFn: api.datasets });
 export const useProviders = () => useQuery({ queryKey: ["providers"], queryFn: api.providers });
+export const useRuns = () => useQuery({ queryKey: ["runs"], queryFn: api.runs });

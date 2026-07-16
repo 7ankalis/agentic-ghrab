@@ -4,14 +4,15 @@ Pipeline orchestrator — the deterministic-first analysis entry point.
 Deterministic layer (GRS scoring, capability classification, reachability graph,
 autonomous attack-path discovery) always runs, is instant, and needs no API key.
 The AI layer (path validation/narration, cross-path toxic combinations, compliance
-briefing, executive synthesis) runs only when a provider is connected and is
-cached to disk so repeat runs don't re-spend tokens unless a refresh is forced.
-Per-finding remediation enrichment is intentionally on-demand (findings drill-in),
-not in this bulk pass.
+briefing, executive synthesis) runs only when a provider is connected. The two are
+split into separate functions on purpose: `compute_deterministic` is cheap enough
+to call on every request, while `run_ai_layer` spends tokens and is only ever
+invoked from api/state.py's persisted-run flow (see db/repository.py) — never as
+a side effect of a plain GET. Per-finding remediation enrichment is intentionally
+on-demand (findings drill-in), not in this bulk pass.
 """
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
 
@@ -25,10 +26,15 @@ from agents.triage_agent import executive_synthesis
 from core.attack_graph import DiscoveredPath, HostNode, discover_paths
 from core.capability import Capability, classify_all
 from core.cmdb import CMDB, get_cmdb
-from core.config import ANALYSIS_CACHE_PATH
 from core.graph import Chain, build_chains
 from core.ingestion import get_vulnerabilities
-from core.providers import any_provider_configured
+
+
+class RunCancelled(Exception):
+    """Raised inside the pipeline when the operator hits the kill switch.
+    Cancellation is cooperative: the AI layer checks `should_cancel()` at every
+    agent boundary, so a kill takes effect at the next stage rather than
+    tearing down a provider call mid-flight."""
 
 
 @dataclass
@@ -48,21 +54,9 @@ class AnalysisResult:
     generated_at: float = 0.0
 
 
-def _load_cache() -> dict:
-    if ANALYSIS_CACHE_PATH.exists():
-        try:
-            return json.loads(ANALYSIS_CACHE_PATH.read_text())
-        except Exception:  # noqa: BLE001
-            return {}
-    return {}
-
-
-def _save_cache(payload: dict) -> None:
-    ANALYSIS_CACHE_PATH.write_text(json.dumps(payload, indent=2, default=str))
-
-
-def run_pipeline(session_state=None, force_refresh: bool = False,
-                 progress_cb=None) -> AnalysisResult:
+def compute_deterministic(progress_cb=None) -> AnalysisResult:
+    """The instant, no-API-key-needed half of the pipeline. Safe to call on
+    every request — never spends a token, never touches the database."""
     def report(msg: str, level: str = "info"):
         if progress_cb:
             progress_cb(msg, level)
@@ -80,40 +74,50 @@ def run_pipeline(session_state=None, force_refresh: bool = False,
     paths, graph, nodes = discover_paths(df, cmdb, caps)
     documented = build_chains(df)   # oracle/overlay only — never fed to discovery
 
-    ai_enabled = any_provider_configured(session_state)
-    result = AnalysisResult(
+    return AnalysisResult(
         df=df, cmdb=cmdb, caps=caps, paths=paths, graph=graph, nodes=nodes,
-        documented_chains=documented, ai_enabled=ai_enabled, generated_at=time.time(),
+        documented_chains=documented, ai_enabled=False, generated_at=time.time(),
     )
-    if not ai_enabled:
-        report("Deterministic analysis complete (no AI provider connected).")
-        return result
 
-    cache = {} if force_refresh else _load_cache()
-    if cache and not force_refresh and cache.get("discovery"):
-        result.discovery = cache.get("discovery", {})
-        result.correlation = cache.get("correlation", {})
-        result.compliance = cache.get("compliance", {})
-        result.executive_summary = cache.get("executive_summary", "")
-        report("Loaded cached AI enrichment.")
-        return result
 
+def run_ai_layer(result: AnalysisResult, session_state=None, progress_cb=None,
+                 should_cancel=None) -> None:
+    """Runs the token-spending agents and mutates `result` in place. Callers
+    are expected to persist the outcome (see api/state.run_new_analysis) —
+    this function has no caching of its own.
+
+    `should_cancel`, if given, is polled at every agent boundary; when it
+    returns True the pipeline stops between stages by raising RunCancelled."""
+    def report(msg: str, level: str = "info"):
+        if progress_cb:
+            progress_cb(msg, level)
+
+    def checkpoint():
+        if should_cancel and should_cancel():
+            raise RunCancelled
+
+    df, cmdb, paths = result.df, result.cmdb, result.paths
+
+    checkpoint()
     report("Discovery Agent: validating, ranking, and narrating attack chains…")
     result.discovery = analyze_paths(paths, df, cmdb, session_state)
     disc_err = result.discovery.get("paths_error") or result.discovery.get("combos_error")
     if disc_err:
         report(f"Discovery Agent — provider error, deterministic chains still stand: {disc_err}", "warn")
 
+    checkpoint()
     report("Correlation Agent: cross-referencing findings, assets, and teams…")
     result.correlation = find_toxic_combinations(df, cmdb, session_state)
     if result.correlation.get("error"):
         report(f"Correlation Agent — provider error: {result.correlation['error']}", "warn")
 
+    checkpoint()
     report("Compliance Agent: building regulatory posture briefing…")
     result.compliance = compliance_summary(df, cmdb, session_state)
     if result.compliance.get("error"):
         report(f"Compliance Agent — provider error: {result.compliance['error']}", "warn")
 
+    checkpoint()
     report("Triage Agent: drafting executive synthesis…")
     result.executive_summary = executive_synthesis(
         df, cmdb, session_state,
@@ -122,11 +126,4 @@ def run_pipeline(session_state=None, force_refresh: bool = False,
     if result.executive_summary.startswith("AI executive synthesis unavailable"):
         report(f"Triage Agent — provider error: {result.executive_summary}", "warn")
 
-    _save_cache({
-        "discovery": result.discovery,
-        "correlation": result.correlation,
-        "compliance": result.compliance,
-        "executive_summary": result.executive_summary,
-    })
     report("Analysis complete.")
-    return result

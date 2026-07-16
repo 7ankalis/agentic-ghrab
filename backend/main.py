@@ -15,8 +15,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.logs import router as logs_router
 from api.routes import router as rest_router
 from api.streams import router as stream_router
+from db.session import init_db
 
 app = FastAPI(title="Ghrab VOC API", version="1.0.0")
+init_db()
 
 # Dev-friendly CORS: the Vite dev server (5173) + configurable extra origins.
 _origins = os.environ.get(

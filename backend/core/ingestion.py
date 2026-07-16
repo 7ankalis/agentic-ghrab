@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from core.config import VULN_CSV_PATH
+from core.config import active_vuln_csv
 from core.risk_engine import compute_grs, exposure_tier_label
 
 
-def load_vulnerabilities(path=VULN_CSV_PATH) -> pd.DataFrame:
+def load_vulnerabilities(path=None) -> pd.DataFrame:
+    if path is None:
+        path = active_vuln_csv()
     df = pd.read_csv(path)
     df["CVSS_Base"] = pd.to_numeric(df["CVSS_Base"], errors="coerce").fillna(0.0)
 
@@ -44,3 +46,10 @@ def get_vulnerabilities() -> pd.DataFrame:
     if _vuln_singleton is None:
         _vuln_singleton = load_vulnerabilities()
     return _vuln_singleton
+
+
+def reset_vulnerabilities() -> None:
+    """Drop the cached DataFrame so the next load re-reads the (now different)
+    active dataset's CSV. Called when the operator switches enterprise."""
+    global _vuln_singleton
+    _vuln_singleton = None

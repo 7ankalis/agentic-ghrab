@@ -3,6 +3,7 @@ import { RadialBar, RadialBarChart, PolarAngleAxis, ResponsiveContainer } from "
 import { CheckCircle2, Loader2, Sparkles, Wrench } from "lucide-react";
 import { api } from "@/lib/api";
 import { bandColor } from "@/lib/format";
+import { useToast } from "@/lib/toast";
 import { AiBadge, BandPill, Tag } from "@/components/ui";
 import Drawer from "@/components/Drawer";
 import { useFinding } from "@/lib/hooks";
@@ -40,7 +41,11 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function FindingDrawer({ qid, onClose }: { qid: number | null; onClose: () => void }) {
   const { data: f, isLoading } = useFinding(qid);
-  const rem = useMutation<Remediation>({ mutationFn: () => api.remediation(qid!) });
+  const toast = useToast();
+  const rem = useMutation<Remediation>({
+    mutationFn: () => api.remediation(qid!),
+    onSuccess: (d) => { if (!d.error) toast.success("Remediation plan ready"); },
+  });
 
   return (
     <Drawer open={qid != null} onClose={onClose}>

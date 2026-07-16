@@ -23,33 +23,46 @@ DATA_DIR = ROOT_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# VULN_CSV_PATH = DATA_DIR / "ghrab_vulnerabilities_v2.csv"
-# ARCHITECTURE_MD_PATH = DATA_DIR / "ghrab_architecture_v2.md"
-# RISK_METHODOLOGY_MD_PATH = DATA_DIR / "ghrab_risk_methodology.md"
-# ANALYSIS_CACHE_PATH = CACHE_DIR / "analysis_cache.json"
-
-
-VULN_CSV_PATH = DATA_DIR / "velon_vulnerabilities.csv"
-ARCHITECTURE_MD_PATH = DATA_DIR / "velon_architecture.md"
+# The risk-scoring methodology is shared across every enterprise (it encodes
+# EPSS/KEV/DORA scoring rules, not org-specific data), so unlike the per-org
+# vulnerabilities CSV + architecture doc it stays a fixed path.
 RISK_METHODOLOGY_MD_PATH = DATA_DIR / "ghrab_risk_methodology.md"
-ANALYSIS_CACHE_PATH = CACHE_DIR / "analysis_cache.json"
 
-# Per-org framing for the LLM analyst persona (agents/base.py) — keyed off which
-# lab's CSV is currently active so agent narratives describe the right sector
-# and compliance frameworks instead of always assuming Ghrab Financial Group.
-ORG_PROFILES: dict[str, dict[str, str]] = {
-    "ghrab": {
-        "name": "Ghrab Financial Group",
-        "sector": "a financial services firm",
-        "frameworks": "PCI DSS, SWIFT CSP, EU DORA",
-    },
-    "velon": {
-        "name": "Velon Health Systems",
-        "sector": "a healthcare provider",
-        "frameworks": "HIPAA Security Rule, FDA Premarket/Postmarket Cybersecurity Guidance",
-    },
-}
-ACTIVE_ORG = ORG_PROFILES[VULN_CSV_PATH.stem.split("_")[0]]
+# SQLite by default (zero-ops, file-based) — swapping to Postgres in prod is a
+# DATABASE_URL env change, nothing else, since access only ever goes through
+# db/repository.py's SQLAlchemy layer.
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR / 'voc.db'}")
+
+
+# --- Active dataset accessors --------------------------------------------------
+# Which enterprise is being scanned is now runtime-switchable (see
+# core/datasets.py + api/routes.py's /datasets endpoints), not a fixed constant.
+# These thin accessors resolve the currently active dataset at call time; import
+# is deferred to avoid a circular import (datasets.py imports DATA_DIR above).
+def active_vuln_csv() -> Path:
+    from core.datasets import get_active
+    return get_active().vuln_csv
+
+
+def active_architecture_md() -> Path:
+    from core.datasets import get_active
+    return get_active().architecture_md
+
+
+def active_dataset_key() -> str:
+    """The persistence/scoping key every analysis_run row is stored under, so
+    switching enterprise never mixes one dataset's run history into another's
+    duplicate-detection or trend queries."""
+    from core.datasets import get_active
+    return get_active().key
+
+
+def active_org() -> dict[str, str]:
+    """Per-org framing for the LLM analyst persona (agents/base.py) so agent
+    narratives describe the active enterprise's sector + compliance frameworks."""
+    from core.datasets import get_active
+    d = get_active()
+    return {"name": d.name, "sector": d.sector, "frameworks": d.frameworks}
 
 @dataclass(frozen=True)
 class ProviderSpec:
