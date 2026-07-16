@@ -83,6 +83,23 @@ export default function Layout() {
     return lines.map((l) => (l.status === "active" ? { ...l, status: "done" } : l));
   }
 
+  // A run kicked off before a reload keeps going server-side (it's not tied
+  // to any one SSE connection's lifetime) — check once on mount so a
+  // reloaded tab can reattach to it instead of showing nothing until the
+  // user clicks a button again, mismatched against what's actually running.
+  const bootstrapped = useRef(false);
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    api
+      .analyzeStatus()
+      .then((s) => {
+        if (s.running) runAnalysis(false);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function runAnalysis(force: boolean) {
     setRunning(true);
     setProgress([]);

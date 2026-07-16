@@ -46,6 +46,10 @@ export const api = {
     post<{ ok: boolean }>("/settings/agent", { role, provider }),
   logs: () => get<{ logs: LogEntry[] }>("/logs"),
   clearLogs: () => del<{ ok: boolean }>("/logs"),
+  analyzeStatus: () =>
+    get<{ running: boolean; lines: { event: string; message: string; level: string }[] }>(
+      "/analyze/status",
+    ),
 };
 
 /**

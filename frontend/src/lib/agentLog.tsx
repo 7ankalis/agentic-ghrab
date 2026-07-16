@@ -43,6 +43,18 @@ export function AgentLogProvider({ children }: { children: ReactNode }) {
         try {
           setConnected(true);
           await streamSSE("/logs/stream", undefined, (event, data) => {
+            if (event === "active_snapshot") {
+              // Authoritative resync from the server's unbounded in-flight
+              // set — history() is trimmed by count and can drop a call's
+              // "start" before its "finish" arrives during a busy run,
+              // which would otherwise strand that row as "running" forever.
+              // Sent on every connect (including reconnects), so this
+              // self-heals regardless of how the client got out of sync.
+              const snapshot = (data.active as LogEntry[]) ?? [];
+              startsRef.current = new Map(snapshot.map((e) => [e.id, e]));
+              setActive(Array.from(startsRef.current.values()));
+              return;
+            }
             if (event !== "log") return;
             const entry = data as LogEntry;
             const key = `${entry.id}-${entry.event}`;

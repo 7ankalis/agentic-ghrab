@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass
 _counter = itertools.count(1)
 _lock = threading.Lock()
 _history: list[dict] = []
+_active: dict[int, dict] = {}  # call_id -> start event, authoritative + never trimmed
 _subscribers: list[queue.Queue] = []
 MAX_HISTORY = 300
 
@@ -50,6 +51,16 @@ def _publish(ev: CallEvent) -> None:
         _history.append(d)
         if len(_history) > MAX_HISTORY:
             del _history[: len(_history) - MAX_HISTORY]
+        # `_active` is the authoritative "currently running" set: unlike
+        # `_history` it's never trimmed by count, so a busy pipeline can't
+        # evict a call's `start` event before its `finish` arrives and strand
+        # it as permanently "running" client-side. Cleared only by a matching
+        # finish, so a reconnecting client can always resync to ground truth
+        # via active() instead of reconstructing it from a lossy replay.
+        if ev.event == "start":
+            _active[ev.id] = d
+        else:
+            _active.pop(ev.id, None)
         subs = list(_subscribers)
     for q in subs:
         q.put(d)
@@ -82,9 +93,17 @@ def history() -> list[dict]:
         return list(_history)
 
 
+def active() -> list[dict]:
+    """Authoritative snapshot of in-flight calls (start with no finish yet),
+    independent of `_history`'s trimming. Used to resync clients on connect."""
+    with _lock:
+        return list(_active.values())
+
+
 def clear() -> None:
     with _lock:
         _history.clear()
+        _active.clear()
 
 
 def subscribe() -> queue.Queue:
