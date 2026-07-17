@@ -161,7 +161,10 @@ export default function Trends() {
                   return (
                     <tr
                       key={r.id}
-                      className={cx("border-b border-line/60 last:border-0", r.status !== "complete" && "opacity-60")}
+                      className={cx(
+                        "border-b border-line/60 transition-colors last:border-0 hover:bg-surface-2/60",
+                        r.status !== "complete" && "opacity-60",
+                      )}
                     >
                       <td className="whitespace-nowrap px-4 py-2.5 text-xs text-ink-faint" title={new Date(r.started_at * 1000).toISOString()}>
                         {fmtDate(r.started_at)}

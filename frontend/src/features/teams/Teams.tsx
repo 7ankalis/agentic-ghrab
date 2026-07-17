@@ -3,7 +3,7 @@ import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YA
 import { useTeams } from "@/lib/hooks";
 import { bandColor, bandForGrs, initials } from "@/lib/format";
 import { useChartColors } from "@/lib/chartColors";
-import { BandPill, ExportButton, SectionTitle, Skeleton } from "@/components/ui";
+import { BandPill, ExportButton, SectionTitle, Skeleton, useSpotlight } from "@/components/ui";
 import { downloadMarkdown, timestamp } from "@/lib/report";
 import { buildTeamsReport } from "@/lib/reportBuilders";
 
@@ -11,6 +11,7 @@ export default function Teams() {
   const { data, isLoading } = useTeams();
   const nav = useNavigate();
   const colors = useChartColors();
+  const spotlight = useSpotlight();
   if (isLoading || !data) return <Skeleton className="h-96" />;
   const teams = data.teams;
   const chart = teams.map((t) => ({ team: t.team.replace(/ Team$/, ""), grs: t.max_grs, band: bandForGrs(t.max_grs) }));
@@ -49,14 +50,16 @@ export default function Teams() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {teams.map((t) => (
+        {teams.map((t, i) => (
           <button
             key={t.team}
             onClick={() => nav(`/findings?team=${encodeURIComponent(t.team)}`)}
-            className="card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-glow"
+            onMouseMove={spotlight}
+            style={{ animationDelay: `${i * 55}ms` }}
+            className="spot card-interactive group p-4 text-left animate-fade-up"
           >
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-sage/12 font-display text-sm font-bold text-sage-bright">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-sage/12 font-display text-sm font-bold text-sage-bright transition-transform duration-200 group-hover:scale-110">
                 {initials(t.team)}
               </div>
               <div className="min-w-0 flex-1">

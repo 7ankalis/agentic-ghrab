@@ -29,9 +29,9 @@ export default {
         purple: "rgb(var(--c-purple) / <alpha-value>)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        sans: ["Lato", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
-        display: ["Space Grotesk", "Inter", "sans-serif"],
+        display: ["Libre Baskerville", "Georgia", "Times New Roman", "serif"],
       },
       boxShadow: {
         // Depth swaps with the theme — see --shadow-* in index.css.
@@ -73,6 +73,18 @@ export default {
           "0%": { opacity: "0", transform: "translateY(-8px) scale(0.97)" },
           "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        "row-in": {
+          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "typing-dot": {
+          "0%,60%,100%": { transform: "translateY(0)", opacity: "0.4" },
+          "30%": { transform: "translateY(-3px)", opacity: "1" },
+        },
+        "glow-breathe": {
+          "0%,100%": { opacity: "0.55" },
+          "50%": { opacity: "1" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease both",
@@ -82,6 +94,9 @@ export default {
         "pop-in": "pop-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
         "overlay-in": "overlay-in 0.2s ease both",
         "cmd-in": "cmd-in 0.24s cubic-bezier(0.16,1,0.3,1) both",
+        "row-in": "row-in 0.35s cubic-bezier(0.16,1,0.3,1) both",
+        "typing-dot": "typing-dot 1.2s ease-in-out infinite",
+        "glow-breathe": "glow-breathe 3s ease-in-out infinite",
       },
     },
   },

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity, AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronUp, Circle,
   Database, FileDown, FileText, GitBranch, LayoutDashboard, Loader2,
-  MessageSquare, Moon, Power, RefreshCw, Network, ScrollText, Search, Settings as SettingsIcon,
+  MessageSquare, Moon, Power, Radar, RefreshCw, Network, ScrollText, Search, Settings as SettingsIcon,
   ShieldCheck, Share2, Sparkles, Sun, Tags, Terminal, TrendingUp, Users, XCircle, Zap,
 } from "lucide-react";
 import { api, streamSSE } from "@/lib/api";
@@ -20,6 +20,7 @@ import type { RunSummary } from "@/lib/types";
 import AiDock from "./AiDock";
 import CommandPalette, { type Command } from "./CommandPalette";
 import DatasetPicker from "./DatasetPicker";
+import { RavenMark } from "./Logo";
 
 // Presentation-only shortcut glyph — ⌘ on Apple platforms, Ctrl elsewhere.
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform);
@@ -43,35 +44,34 @@ type StageStatus = "active" | "done";
 interface ProgressLine { message: string; level: Level; status: StageStatus; }
 
 // Ordered milestones the backend orchestrator reports, used to drive a real
-// progress bar. Deterministic-mode runs skip straight from "discover paths"
-// to "complete", which is intentional — those stages genuinely didn't run.
-const CORE_STAGES: RegExp[] = [
-  /ingesting vulnerability/i,
-  /parsing enterprise cmdb/i,
-  /classifying findings/i,
-  /discovering attack paths/i,
-  /discovery agent/i,
-  /correlation agent/i,
-  /compliance agent/i,
-  /triage agent/i,
-  /analysis complete/i,
+// per-stage tracker. Deterministic-mode runs skip straight from "discover
+// paths" to "complete", which is intentional — those stages genuinely didn't
+// run.
+interface StageDef { test: RegExp; label: string; icon: typeof Database }
+const CORE_STAGES: StageDef[] = [
+  { test: /ingesting vulnerability/i, label: "Ingest", icon: Database },
+  { test: /parsing enterprise cmdb/i, label: "CMDB", icon: Network },
+  { test: /classifying findings/i, label: "Classify", icon: Tags },
+  { test: /discovering attack paths/i, label: "Reachability", icon: GitBranch },
+  { test: /analyst detection agent/i, label: "Detection", icon: Radar },
+  { test: /discovery agent/i, label: "Discovery", icon: Sparkles },
+  { test: /correlation agent/i, label: "Correlation", icon: Share2 },
+  { test: /compliance agent/i, label: "Compliance", icon: ShieldCheck },
+  { test: /triage agent/i, label: "Triage", icon: FileText },
+  { test: /analysis complete/i, label: "Complete", icon: CheckCircle2 },
 ];
 
-const STAGE_ICONS: { test: RegExp; icon: typeof Database }[] = [
-  { test: /ingesting vulnerability/i, icon: Database },
-  { test: /parsing enterprise cmdb/i, icon: Network },
-  { test: /classifying findings/i, icon: Tags },
-  { test: /discovering attack paths/i, icon: GitBranch },
+// Messages that aren't stage milestones but still deserve a recognizable glyph.
+const EXTRA_ICONS: { test: RegExp; icon: typeof Database }[] = [
   { test: /cached ai enrichment/i, icon: Zap },
-  { test: /discovery agent/i, icon: Sparkles },
-  { test: /correlation agent/i, icon: Share2 },
-  { test: /compliance agent/i, icon: ShieldCheck },
-  { test: /triage agent/i, icon: FileText },
-  { test: /analysis complete/i, icon: CheckCircle2 },
 ];
 
 function iconForStage(message: string) {
-  return STAGE_ICONS.find((s) => s.test.test(message))?.icon ?? Circle;
+  return (
+    CORE_STAGES.find((s) => s.test.test(message))?.icon ??
+    EXTRA_ICONS.find((s) => s.test.test(message))?.icon ??
+    Circle
+  );
 }
 
 function formatElapsed(ms: number): string {
@@ -299,13 +299,13 @@ export default function Layout() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-line bg-surface/70 backdrop-blur-xl">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-sage to-forest-lit shadow-glow">
-            <Activity size={18} className="text-forest" />
+        <div className="group flex items-center gap-3 border-b border-line px-4 py-5">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-forest-lit to-forest shadow-glow transition-transform duration-300 group-hover:scale-105">
+            <RavenMark size={36} className="text-[#F7F2EE] transition-transform duration-300 group-hover:-translate-y-px" />
           </div>
           <div className="leading-tight">
-            <div className="font-display text-[15px] font-bold tracking-wide text-ink">GHRAB</div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+            <div className="font-display text-[22px] font-bold tracking-wide text-ink">Ghrab</div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-sage-bright">
               VOC
             </div>
           </div>
@@ -318,29 +318,37 @@ export default function Layout() {
               end={end}
               className={({ isActive }) =>
                 cx(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                  isActive
-                    ? "bg-sage/12 text-ink shadow-[inset_0_0_0_1px_rgba(85,161,133,0.25)]"
-                    : "text-ink-muted hover:bg-surface-2 hover:text-ink",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive ? "text-ink" : "text-ink-muted hover:bg-surface-2 hover:text-ink",
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <span
-                    className={cx(
-                      "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-sage-bright transition-all duration-200",
-                      isActive ? "opacity-100" : "opacity-0 -translate-x-1",
-                    )}
-                  />
+                  {/* One shared pill glides between entries instead of each
+                      link lighting up independently. */}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-pill"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      className="absolute inset-0 rounded-lg bg-sage/12 shadow-[inset_0_0_0_1px_rgba(85,161,133,0.25)]"
+                    />
+                  )}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-tick"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-sage-bright"
+                    />
+                  )}
                   <Icon
                     size={17}
                     className={cx(
-                      "transition-transform duration-200 group-hover:scale-110",
+                      "relative transition-transform duration-200 group-hover:scale-110",
                       isActive ? "text-sage-bright" : "text-ink-faint group-hover:text-ink-muted",
                     )}
                   />
-                  {label}
+                  <span className="relative">{label}</span>
                 </>
               )}
             </NavLink>
@@ -363,11 +371,25 @@ export default function Layout() {
       {/* Main */}
       <div className="ml-60 flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-base/70 px-8 py-3.5 backdrop-blur-xl">
-          <div>
-            <h1 className="font-display text-base font-semibold text-ink">
-              Vulnerability Operations Center
-            </h1>
-            <p className="text-xs text-ink-faint">
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2.5 overflow-hidden">
+              <h1 className="shrink-0 font-display text-base font-semibold text-ink">
+                Vulnerability Operations Center
+              </h1>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={location.pathname}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                  className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-sage-bright"
+                >
+                  {NAV.find((n) => (n.end ? location.pathname === n.to : n.to !== "/" && location.pathname.startsWith(n.to)))?.label ?? ""}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+            <p className="truncate text-xs text-ink-faint">
               {activeEnterprise?.name ?? "No enterprise selected"} · {kpis ? `${kpis.total} findings · ${kpis.discovered_paths} attack paths discovered` : "loading…"}
             </p>
           </div>
@@ -472,20 +494,31 @@ function ProgressOverlay({
 
   const hasError = lines.some((l) => l.level === "error");
   const stageIndex = CORE_STAGES.reduce(
-    (acc, re, i) => (lines.some((l) => re.test(l.message)) ? i : acc),
+    (acc, s, i) => (lines.some((l) => s.test.test(l.message)) ? i : acc),
     -1,
   );
   const isComplete = /analysis complete/i.test(lines[lines.length - 1]?.message ?? "");
   const wasCancelled = lines.some((l) => /stopped by operator/i.test(l.message));
   const stoppable = !isComplete && !hasError && !wasCancelled;
-  const pct = Math.max(4, Math.min(100, Math.round(((stageIndex + 1) / CORE_STAGES.length) * 100)));
+  // Finished stages count fully; the in-flight one counts half so the number
+  // keeps honest — it never claims a stage that hasn't finished.
+  const pct = isComplete
+    ? 100
+    : Math.max(2, Math.min(98, Math.round(((stageIndex + 0.5) / CORE_STAGES.length) * 100)));
   const activeLine = [...lines].reverse().find((l) => l.status === "active");
+  const currentStage = CORE_STAGES[Math.max(0, stageIndex)];
+  const CurrentIcon = activeLine ? iconForStage(activeLine.message) : currentStage?.icon ?? Circle;
+  const settled = hasError || wasCancelled || isComplete;
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 w-[520px] max-w-[92vw] -translate-x-1/2 animate-pop-in">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-6 left-1/2 z-50 w-[560px] max-w-[92vw] -translate-x-1/2 animate-pop-in"
+    >
       <div
         className={cx(
-          "card overflow-hidden shadow-pop",
+          "overflow-hidden rounded-2xl border bg-surface/95 shadow-pop backdrop-blur-xl",
           hasError ? "border-immediate/40" : "border-line-strong",
         )}
       >
@@ -497,16 +530,16 @@ function ProgressOverlay({
               hasError
                 ? "bg-gradient-to-r from-transparent via-immediate to-transparent"
                 : "bg-gradient-to-r from-transparent via-sage-bright to-transparent",
-              !isComplete && "animate-scan-x",
+              !settled && "animate-scan-x",
             )}
           />
         </div>
 
         {/* header */}
-        <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
+        <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
           <div
             className={cx(
-              "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors",
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors",
               hasError || wasCancelled
                 ? "bg-immediate/15"
                 : isComplete
@@ -515,18 +548,18 @@ function ProgressOverlay({
             )}
           >
             {hasError ? (
-              <AlertTriangle size={16} className="text-immediate" />
+              <AlertTriangle size={17} className="text-immediate" />
             ) : wasCancelled ? (
-              <Power size={16} className="text-immediate" />
+              <Power size={17} className="text-immediate" />
             ) : isComplete ? (
-              <CheckCircle2 size={16} className="text-sage-bright" />
+              <CheckCircle2 size={17} className="text-sage-bright" />
             ) : (
-              <Loader2 size={16} className="animate-spin text-forest" />
+              <Loader2 size={17} className="animate-spin text-forest" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-ink">
+              <span className="truncate font-display text-sm font-semibold text-ink">
                 {hasError
                   ? "Pipeline hit a snag"
                   : wasCancelled
@@ -537,12 +570,20 @@ function ProgressOverlay({
                   ? "Stopping analysis…"
                   : "Running analysis pipeline"}
               </span>
-              <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-faint">
+              <span className="shrink-0 rounded-md border border-line bg-surface-2/70 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-ink-muted">
                 {formatElapsed(elapsed)}
               </span>
             </div>
-            <div className="mt-0.5 truncate text-[11px] text-ink-faint">
-              {activeLine?.message ?? lines[lines.length - 1]?.message ?? "Warming up…"}
+            <div className="mt-0.5 text-[11px] text-ink-faint">
+              {hasError
+                ? "One agent failed — details in the log below."
+                : wasCancelled
+                ? "Halted at the last agent boundary."
+                : isComplete
+                ? `All ${CORE_STAGES.length} stages finished.`
+                : stageIndex < 0
+                ? "Warming up…"
+                : `Stage ${stageIndex + 1} of ${CORE_STAGES.length} — ${currentStage.label}`}
             </div>
           </div>
           {stoppable && (
@@ -569,72 +610,119 @@ function ProgressOverlay({
           </button>
         </div>
 
-        {/* progress bar */}
-        <div className="px-4">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-            <div
-              className={cx(
-                "h-full rounded-full transition-[width] duration-700 ease-out",
-                hasError ? "bg-immediate" : "bg-gradient-to-r from-sage to-sage-bright",
-              )}
-              style={{ width: `${pct}%` }}
-            />
+        {/* segmented stage tracker — one notch per pipeline stage */}
+        <div className="px-4 pb-3.5">
+          <div className="flex items-center gap-1">
+            {CORE_STAGES.map((s, i) => {
+              const done = isComplete || i < stageIndex;
+              const active = !isComplete && i === stageIndex;
+              return (
+                <div
+                  key={s.label}
+                  title={s.label}
+                  className={cx(
+                    "relative h-1.5 flex-1 overflow-hidden rounded-full transition-colors duration-500",
+                    done
+                      ? hasError
+                        ? "bg-immediate/60"
+                        : "bg-gradient-to-r from-sage to-sage-bright"
+                      : active
+                      ? hasError
+                        ? "bg-immediate/40"
+                        : "bg-sage/25"
+                      : "bg-surface-2",
+                  )}
+                >
+                  {active && !settled && (
+                    <span className="absolute inset-y-0 w-2/3 animate-scan-x rounded-full bg-gradient-to-r from-transparent via-sage-bright to-transparent" />
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="mb-3 mt-1.5 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-ink-faint">
-            <span>Stage {Math.max(1, Math.min(stageIndex + 1, CORE_STAGES.length))} of {CORE_STAGES.length}</span>
+          <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
             <span className="tabular-nums">{pct}%</span>
+            <span>
+              {isComplete
+                ? "Done"
+                : hasError
+                ? "Failed"
+                : wasCancelled
+                ? "Stopped"
+                : `${Math.max(0, stageIndex)} of ${CORE_STAGES.length} stages done`}
+            </span>
           </div>
         </div>
 
-        {/* stepper log */}
+        {/* now-running strip — the one thing to read when the log is collapsed */}
+        {!settled && (
+          <div className="mx-4 mb-3.5 flex items-start gap-2.5 rounded-lg border border-sage/20 bg-sage/8 px-3 py-2.5">
+            <span className="relative mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sage/15">
+              <span className="absolute inset-0 rounded-full animate-ring-pulse" />
+              <CurrentIcon size={12} className="text-sage-bright" />
+            </span>
+            <p className="min-w-0 text-[11.5px] leading-relaxed text-ink line-clamp-2">
+              {activeLine?.message ?? lines[lines.length - 1]?.message ?? "Connecting to the orchestrator…"}
+            </p>
+          </div>
+        )}
+
+        {/* timeline log */}
         {!collapsed && (
           <div
             ref={scrollRef}
-            className="max-h-56 space-y-0.5 overflow-y-auto border-t border-line px-2.5 py-2.5 font-mono text-[11px]"
+            className="max-h-52 overflow-y-auto border-t border-line px-3.5 py-3 font-mono text-[11px]"
           >
             {lines.map((l, i) => {
               const isActive = l.status === "active";
               const isError = l.level === "error";
               const isWarn = l.level === "warn";
+              const isLast = i === lines.length - 1;
               const StatusIcon = isActive ? Loader2 : isError ? XCircle : isWarn ? AlertTriangle : CheckCircle2;
               const StageIcon = iconForStage(l.message);
               return (
                 <div
                   key={i}
                   className={cx(
-                    "flex items-start gap-2 rounded-md px-2 py-1.5 transition-colors animate-fade-up",
+                    "flex gap-2.5 rounded-md pr-2 transition-colors animate-fade-up",
                     isActive && "bg-sage/8",
                   )}
                 >
-                  <span
-                    className={cx(
-                      "mt-[1px] grid h-4 w-4 shrink-0 place-items-center rounded-full",
-                      isActive
-                        ? "text-sage-bright"
-                        : isError
-                        ? "text-immediate"
-                        : isWarn
-                        ? "text-attend"
-                        : "text-sage/70",
-                    )}
-                  >
-                    <StatusIcon size={12} className={isActive ? "animate-spin" : ""} />
-                  </span>
-                  <StageIcon size={11} className="mt-[3px] shrink-0 text-ink-faint/60" />
-                  <span
-                    className={cx(
-                      "leading-relaxed",
-                      isActive
-                        ? "text-ink"
-                        : isError
-                        ? "text-immediate"
-                        : isWarn
-                        ? "text-attend"
-                        : "text-ink-muted",
-                    )}
-                  >
-                    {l.message}
-                  </span>
+                  {/* dot + connector column */}
+                  <div className="flex w-5 shrink-0 flex-col items-center">
+                    <span
+                      className={cx(
+                        "mt-1.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border",
+                        isActive
+                          ? "border-sage/40 bg-sage/15 text-sage-bright"
+                          : isError
+                          ? "border-immediate/40 bg-immediate/10 text-immediate"
+                          : isWarn
+                          ? "border-attend/40 bg-attend/10 text-attend"
+                          : "border-line bg-surface-2 text-sage/80",
+                      )}
+                    >
+                      <StatusIcon size={11} className={isActive ? "animate-spin" : ""} />
+                    </span>
+                    {!isLast && <span className="my-1 w-px flex-1 rounded-full bg-line" />}
+                  </div>
+                  <div className="flex min-w-0 flex-1 items-start gap-1.5 py-1.5">
+                    <StageIcon size={11} className="mt-[3px] shrink-0 text-ink-faint/60" />
+                    <span
+                      className={cx(
+                        "leading-relaxed",
+                        isActive
+                          ? "font-medium text-ink"
+                          : isError
+                          ? "text-immediate"
+                          : isWarn
+                          ? "text-attend"
+                          : "text-ink-muted",
+                      )}
+                    >
+                      {l.message}
+                    </span>
+                  </div>
                 </div>
               );
             })}

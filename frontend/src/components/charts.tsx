@@ -16,7 +16,7 @@ function TooltipBox({ children }: { children: React.ReactNode }) {
 
 export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; onSelect?: (b: Band) => void }) {
   const colors = useChartColors();
-  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Lato" };
   const rows = BAND_ORDER.map((b) => ({
     band: b,
     label: BAND_META[b].label,
@@ -53,7 +53,7 @@ export function BandBar({ data, onSelect }: { data: Kpis["band_distribution"]; o
 
 export function RiskScatter({ data }: { data: Overview["cvss_vs_grs"] }) {
   const colors = useChartColors();
-  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Lato" };
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ScatterChart margin={{ left: 4, right: 16, top: 8, bottom: 18 }}>
@@ -113,7 +113,7 @@ export interface GrsTrendPoint { label: string; avg_grs: number }
  * shares the same theme-aware color/tooltip conventions. */
 export function GrsTrendChart({ data }: { data: GrsTrendPoint[] }) {
   const colors = useChartColors();
-  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Lato" };
   return (
     <ResponsiveContainer width="100%" height={230}>
       <AreaChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 4 }}>
@@ -156,7 +156,7 @@ export type BandTrendPoint = { label: string } & Record<Band, number>;
  * Risk Trend screen's second view of the same run history. */
 export function BandTrendChart({ data }: { data: BandTrendPoint[] }) {
   const colors = useChartColors();
-  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Lato" };
   return (
     <ResponsiveContainer width="100%" height={230}>
       <BarChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 4 }}>

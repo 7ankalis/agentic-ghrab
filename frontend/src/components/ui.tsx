@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, type MouseEvent, type ReactNode } from "react";
 import { AlertTriangle, Download, Sparkles } from "lucide-react";
 import { BAND_META, bandColor, cx } from "@/lib/format";
 import type { Band } from "@/lib/types";
@@ -97,6 +97,63 @@ export function OfflineNotice({ what }: { what: string }) {
         discovery — already runs without one. Add a key in <b>Settings</b> to enable the narrative
         layer.
       </div>
+    </div>
+  );
+}
+
+/** Feeds the `.spot` CSS spotlight: attach the returned handler as onMouseMove
+ * on an element carrying the `spot` class and the glow follows the cursor. */
+export function useSpotlight() {
+  return useCallback((e: MouseEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+  }, []);
+}
+
+/** Circular progress ring, 0–100. Animates via a CSS transition on the dash
+ * offset, so re-renders with new data sweep smoothly instead of jumping. */
+export function RingGauge({
+  value,
+  color,
+  size = 46,
+  stroke = 4,
+  children,
+}: {
+  value: number;
+  color: string;
+  size?: number;
+  stroke?: number;
+  children?: ReactNode;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgb(var(--c-surface-3))"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - clamped / 100)}
+          style={{ transition: "stroke-dashoffset 0.9s cubic-bezier(0.22,1,0.36,1)" }}
+        />
+      </svg>
+      {children && <div className="absolute inset-0 grid place-items-center">{children}</div>}
     </div>
   );
 }

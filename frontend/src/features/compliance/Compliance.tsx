@@ -23,8 +23,12 @@ export default function Compliance() {
 
       {c.frameworks_in_scope && (
         <div className="flex flex-wrap gap-2">
-          {c.frameworks_in_scope.map((f) => (
-            <span key={f} className="flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm font-medium text-ink">
+          {c.frameworks_in_scope.map((f, i) => (
+            <span
+              key={f}
+              style={{ animationDelay: `${i * 60}ms` }}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm font-medium text-ink transition-all duration-200 animate-row-in hover:-translate-y-0.5 hover:border-sage/40 hover:shadow-card"
+            >
               <BookMarked size={14} className="text-sage-bright" /> {f}
             </span>
           ))}
@@ -48,7 +52,12 @@ export default function Compliance() {
           </div>
           <div className="space-y-3">
             {c.key_gaps.map((g, i) => (
-              <div key={i} className="card p-4">
+              <div
+                key={i}
+                style={{ animationDelay: `${i * 70}ms` }}
+                className="card relative overflow-hidden p-4 pl-5 transition-colors animate-row-in hover:border-act/35"
+              >
+                <span className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-act/70 to-transparent" />
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Tag color="rgb(var(--c-act))">{g.framework}</Tag>
                   {g.finding_refs?.map((q) => <Tag key={q}>QID {q}</Tag>)}

@@ -26,7 +26,11 @@ export default function Correlation() {
           </div>
           <ul className="space-y-2.5">
             {c.cross_findings_insights.map((ins, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-ink-muted">
+              <li
+                key={i}
+                style={{ animationDelay: `${i * 70}ms` }}
+                className="flex gap-2.5 rounded-lg p-1.5 text-sm text-ink-muted transition-colors animate-row-in hover:bg-surface-2/60"
+              >
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sage" />
                 {ins}
               </li>
@@ -43,8 +47,17 @@ export default function Correlation() {
             </div>
             <div className="space-y-3">
               {c.top_risk_teams.map((t, i) => (
-                <div key={i} className="rounded-lg border border-line bg-surface-2/60 p-3">
-                  <div className="text-sm font-semibold text-ink">{t.team}</div>
+                <div
+                  key={i}
+                  style={{ animationDelay: `${i * 70}ms` }}
+                  className="rounded-lg border border-line bg-surface-2/60 p-3 transition-colors animate-row-in hover:border-sage/35"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-5 w-5 place-items-center rounded-md bg-sage/12 font-mono text-[10px] font-bold text-sage-bright">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-ink">{t.team}</span>
+                  </div>
                   <p className="mt-1 text-sm text-ink-muted">{t.rationale}</p>
                 </div>
               ))}
@@ -62,7 +75,11 @@ export default function Correlation() {
             ) : (
               <div className="space-y-2.5">
                 {c.reprioritization_flags.map((f, i) => (
-                  <div key={i} className="rounded-lg border border-line bg-surface-2/60 p-3 text-sm">
+                  <div
+                    key={i}
+                    style={{ animationDelay: `${i * 70}ms` }}
+                    className="rounded-lg border border-line bg-surface-2/60 p-3 text-sm transition-colors animate-row-in hover:border-act/40"
+                  >
                     <div className="mb-1 flex items-center gap-2">
                       <Tag color="rgb(var(--c-act))">QID {f.qid}</Tag>
                       <span className="text-ink-faint">{f.hostname}</span>

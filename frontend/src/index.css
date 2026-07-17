@@ -40,6 +40,8 @@
     --shadow-pop: 0 8px 24px rgba(20, 40, 33, 0.1), 0 28px 64px rgba(20, 40, 33, 0.18);
     --focus-ring: rgba(20, 108, 84, 0.45);
     --selection: rgba(85, 161, 133, 0.28);
+    --grid-dot: rgba(0, 60, 48, 0.1);
+    --spot: rgba(85, 161, 133, 0.1);
   }
   [data-theme="dark"] {
     color-scheme: dark;
@@ -72,6 +74,8 @@
     --shadow-pop: 0 24px 60px rgba(0, 0, 0, 0.55);
     --focus-ring: rgba(127, 208, 173, 0.55);
     --selection: rgba(85, 161, 133, 0.32);
+    --grid-dot: rgba(140, 175, 160, 0.09);
+    --spot: rgba(127, 208, 173, 0.08);
   }
   html,
   body,
@@ -90,7 +94,21 @@
     background-attachment: fixed;
     /* Kill the mobile/webkit grey flash on every tap — reads as unpolished. */
     -webkit-tap-highlight-color: transparent;
-    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  }
+
+  /* Faint dot-grid texture fading out from the top — gives the flat base
+   * surface a sense of material without competing with content. Painted on a
+   * fixed pseudo-element so it never scrolls or repaints with the page. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+    background-size: 26px 26px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 65% at 50% 0%, black, transparent 75%);
+    mask-image: radial-gradient(ellipse 90% 65% at 50% 0%, black, transparent 75%);
   }
 
   /* Brand-tinted text selection instead of the OS default blue. */
@@ -155,6 +173,38 @@
   .card-2 {
     @apply rounded-xl border border-line bg-surface-2/80;
   }
+  /* Clickable cards: lift + border tint on hover, press-down on click. */
+  .card-interactive {
+    @apply card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-sage/35 hover:shadow-card-hover active:translate-y-0 active:scale-[0.995];
+  }
+  /* Mouse-tracking spotlight — pair with useSpotlight() which writes the
+   * --mx/--my vars on mousemove. Reads as a live, premium surface. */
+  .spot {
+    position: relative;
+  }
+  .spot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    background: radial-gradient(
+      240px circle at var(--mx, 50%) var(--my, 50%),
+      var(--spot-color, var(--spot)),
+      transparent 65%
+    );
+  }
+  .spot:hover::before {
+    opacity: 1;
+  }
+  .text-gradient {
+    background: linear-gradient(92deg, rgb(var(--c-ink)) 30%, rgb(var(--c-sage-bright)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
   .pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
   }
@@ -164,10 +214,23 @@
       active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-primary {
-    @apply btn bg-sage text-forest hover:bg-sage-bright hover:shadow-glow;
+    @apply btn relative overflow-hidden bg-sage text-forest hover:bg-sage-bright hover:shadow-glow hover:-translate-y-px;
+  }
+  /* Light sweep across the primary button on hover — one pass, then rests. */
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.28) 50%, transparent 60%);
+    transform: translateX(-150%);
+    transition: transform 0.55s ease;
+  }
+  .btn-primary:hover::after {
+    transform: translateX(150%);
   }
   .btn-ghost {
-    @apply btn border border-line text-ink-muted hover:border-line-strong hover:text-ink hover:bg-surface-2/60;
+    @apply btn border border-line text-ink-muted hover:border-line-strong hover:text-ink hover:bg-surface-2/60 hover:-translate-y-px;
   }
   .input {
     @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink

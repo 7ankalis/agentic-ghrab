@@ -1,13 +1,13 @@
-import { Component, useState, type ReactNode } from "react";
-import { ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, ShieldCheck, Skull, Sparkles } from "lucide-react";
+import { Component, useState, type CSSProperties, type ReactNode } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, MoveRight, RefreshCw, ShieldCheck, Skull, Sparkles } from "lucide-react";
 import { useAttackPaths, useGraph, useVerification } from "@/lib/hooks";
 import { EDGE_META, confidenceColor, cx } from "@/lib/format";
-import { AiCard, ExportButton, SectionTitle, Skeleton, Tag } from "@/components/ui";
+import { AiCard, ExportButton, SectionTitle, Skeleton, Tag, useSpotlight } from "@/components/ui";
 import { downloadMarkdown, timestamp } from "@/lib/report";
 import { buildAttackPathsReport } from "@/lib/reportBuilders";
 import AttackGraph from "./AttackGraph";
 import PathDetail from "./PathDetail";
-import type { AttackPath } from "@/lib/types";
+import type { AttackPath, DetectedPath } from "@/lib/types";
 
 export default function AttackPaths() {
   const { data: paths, isLoading: lp } = useAttackPaths();
@@ -170,43 +170,9 @@ export default function AttackPaths() {
           <SectionTitle sub="Reasoned from scratch by the Analyst Detection Agent — given only the asset inventory, ownership, and reachability/credential relationships, never a candidate list or a script. Every hop is verified against a real finding.">
             Analyst-Detected Paths
           </SectionTitle>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             {paths.ai_detected.map((d, i) => (
-              <div key={i} className="card p-4">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={15} className="shrink-0 text-purple" />
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <span className="font-medium text-ink">{d.entry}</span>
-                      <ChevronRight size={13} className="text-ink-faint" />
-                      <span className="font-medium text-purple">{d.target}</span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {d.confidence && (
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: confidenceColor(d.confidence) }} title={`confidence: ${d.confidence}`} />
-                    )}
-                    <Tag color={d.grounded ? "rgb(var(--c-sage-bright))" : "rgb(var(--c-act))"}>
-                      {d.grounded ? "grounded" : `${d.verified_hops}/${d.total_hops} verified`}
-                    </Tag>
-                  </div>
-                </div>
-                <ol className="space-y-1">
-                  {d.hops.map((h, j) => (
-                    <li key={j} className="flex items-center gap-1.5 text-xs text-ink-muted">
-                      <span className={cx("h-1 w-1 rounded-full", h.verified ? "bg-sage-bright" : "bg-immediate")} />
-                      <span className="text-ink">{h.from}</span>
-                      <ChevronRight size={11} className="text-ink-faint" />
-                      <span className="text-ink">{h.to}</span>
-                      {h.via_qid != null && <span className="font-mono text-[10px] text-ink-faint">QID {h.via_qid}</span>}
-                      {h.enabler && <span className="text-[10px] text-ink-faint">· {h.enabler}</span>}
-                    </li>
-                  ))}
-                </ol>
-                {d.business_impact && (
-                  <p className="mt-2 text-xs text-ink-muted"><span className="font-semibold text-ink">Impact: </span>{d.business_impact}</p>
-                )}
-              </div>
+              <DetectedPathCard key={i} d={d} index={i} />
             ))}
           </div>
         </div>
@@ -239,6 +205,161 @@ export default function AttackPaths() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** One analyst-detected chain, rendered as a kill-chain timeline: numbered hop
+ *  markers on a gradient spine, per-hop evidence chips, and — when the agent
+ *  explained itself — expandable reasoning behind each hop. */
+function DetectedPathCard({ d, index }: { d: DetectedPath; index: number }) {
+  const spotlight = useSpotlight();
+  const [openHop, setOpenHop] = useState<number | null>(null);
+  const conf = d.confidence ? confidenceColor(d.confidence) : null;
+  const pct = d.total_hops > 0 ? Math.round((d.verified_hops / d.total_hops) * 100) : 0;
+
+  return (
+    <div
+      onMouseMove={spotlight}
+      className="card spot group relative animate-fade-up overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-purple/30 hover:shadow-card-hover"
+      style={{
+        animationDelay: `${index * 70}ms`,
+        "--spot-color": "color-mix(in srgb, rgb(var(--c-purple)) 7%, transparent)",
+      } as CSSProperties}
+    >
+      {/* Accent seam: entry (sage) bleeding into target (purple) */}
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sage via-purple/70 to-transparent" />
+
+      <div className="p-4">
+        {/* Header — route + verdict */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-purple/25 bg-purple/10 text-purple transition-transform duration-300 group-hover:scale-110">
+              <Sparkles size={15} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className="truncate font-mono font-semibold text-ink">{d.entry}</span>
+                <MoveRight size={14} className="shrink-0 text-ink-faint" />
+                <span className="truncate font-mono font-semibold text-purple">{d.target}</span>
+              </div>
+              {d.name && <p className="mt-0.5 truncate text-[11px] text-ink-faint">{d.name}</p>}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {conf && (
+              <span
+                className="pill !py-0.5"
+                style={{
+                  color: conf,
+                  background: `color-mix(in srgb, ${conf} 10%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${conf} 26%, transparent)`,
+                }}
+                title={`analyst confidence: ${d.confidence}`}
+              >
+                {d.confidence}
+              </span>
+            )}
+            <Tag color={d.grounded ? "rgb(var(--c-sage-bright))" : "rgb(var(--c-act))"}>
+              <span className={cx("h-1.5 w-1.5 rounded-full bg-current", d.grounded && "animate-pulse-dot")} />
+              {d.grounded ? "grounded" : "partial"}
+            </Tag>
+          </div>
+        </div>
+
+        {/* Kill-chain timeline */}
+        <ol className="mt-4">
+          {d.hops.map((h, j) => {
+            const expandable = Boolean(h.why);
+            const open = openHop === j;
+            return (
+              <li key={j} className="relative pl-8 pb-1 last:pb-0">
+                {/* Spine segment down to the next marker */}
+                {j < d.hops.length - 1 && (
+                  <span
+                    aria-hidden
+                    className="absolute bottom-[-3px] left-[10.5px] top-[23px] w-px bg-gradient-to-b from-line-strong to-line"
+                  />
+                )}
+                {/* Hop marker — number when verified, alert when not */}
+                <span
+                  className={cx(
+                    "absolute left-0 top-0.5 grid h-[21px] w-[21px] place-items-center rounded-full border font-mono text-[10px] font-semibold",
+                    h.verified
+                      ? "border-sage/40 bg-sage/10 text-sage-bright"
+                      : "border-immediate/40 bg-immediate/10 text-immediate",
+                  )}
+                  title={h.verified ? "verified against a real finding" : "unverified hop"}
+                >
+                  {h.verified ? j + 1 : "!"}
+                </span>
+
+                <button
+                  onClick={() => expandable && setOpenHop(open ? null : j)}
+                  disabled={!expandable}
+                  className={cx(
+                    "-mx-1.5 flex w-[calc(100%+12px)] flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg px-1.5 py-1 text-left text-xs",
+                    expandable && "transition-colors hover:bg-surface-2/70",
+                  )}
+                  title={expandable ? "Show the agent's reasoning for this hop" : undefined}
+                >
+                  <span className="font-mono font-medium text-ink">{h.from}</span>
+                  <ChevronRight size={11} className="shrink-0 text-ink-faint" />
+                  <span className="font-mono font-medium text-ink">{h.to}</span>
+                  {h.via_qid != null && (
+                    <span className="rounded-md border border-line bg-surface-2/80 px-1.5 py-px font-mono text-[10px] text-ink-muted">
+                      QID {h.via_qid}
+                    </span>
+                  )}
+                  {h.enabler && h.enabler !== "None" && (
+                    <span className="rounded-md bg-attend/10 px-1.5 py-px font-mono text-[10px] text-attend">{h.enabler}</span>
+                  )}
+                  {expandable && (
+                    <ChevronDown
+                      size={12}
+                      className={cx("ml-auto shrink-0 text-ink-faint transition-transform duration-200", open && "rotate-180")}
+                    />
+                  )}
+                </button>
+
+                {/* The agent's own justification for this hop */}
+                {open && h.why && (
+                  <p className="mb-1.5 mt-1 animate-row-in rounded-lg border-l-2 border-purple/40 bg-surface-2/60 py-1.5 pl-2.5 pr-2 text-[11px] leading-relaxed text-ink-muted">
+                    {h.why}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        {/* Verification meter + blast radius */}
+        <div className="mt-3.5 space-y-2.5 border-t border-line/70 pt-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">
+              <div
+                className={cx(
+                  "h-full rounded-full transition-[width] duration-700 ease-out",
+                  d.grounded ? "bg-gradient-to-r from-sage to-sage-bright" : "bg-gradient-to-r from-act to-attend",
+                )}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-ink-faint">
+              {d.verified_hops}/{d.total_hops} hops verified
+            </span>
+          </div>
+          {d.business_impact && (
+            <div className="flex items-start gap-2 rounded-lg border border-immediate/15 bg-immediate/[0.05] px-2.5 py-2">
+              <AlertTriangle size={13} className="mt-px shrink-0 text-immediate" />
+              <p className="text-xs leading-relaxed text-ink-muted">
+                <span className="font-semibold text-ink">Impact: </span>
+                {d.business_impact}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

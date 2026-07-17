@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, ChevronRight, RotateCcw, Search, Zap } from "lucide-react";
 import { useFindings } from "@/lib/hooks";
-import { bandColor, cx } from "@/lib/format";
+import { BAND_META, BAND_ORDER, bandColor, cx } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import { BandPill, ExportButton, SectionTitle, Skeleton } from "@/components/ui";
 import { downloadCSV, timestamp } from "@/lib/report";
@@ -175,10 +175,40 @@ export default function Findings() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
           <input className="input pl-9" placeholder="Search title, host, CVE, QID…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="input w-auto" value={band} onChange={(e) => { setBand(e.target.value); setParams(e.target.value ? { band: e.target.value } : {}); }}>
-          <option value="">All bands</option>
-          {["IMMEDIATE", "ACT", "ATTEND", "TRACK*", "TRACK"].map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2/60 p-1">
+          <button
+            onClick={() => { setBand(""); setParams({}); }}
+            className={cx(
+              "rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors",
+              band === "" ? "bg-surface text-ink shadow-card" : "text-ink-faint hover:text-ink-muted",
+            )}
+          >
+            All
+          </button>
+          {BAND_ORDER.map((b) => {
+            const active = band === b;
+            const c = bandColor(b);
+            return (
+              <button
+                key={b}
+                onClick={() => {
+                  const next = active ? "" : b;
+                  setBand(next);
+                  setParams(next ? { band: next } : {});
+                }}
+                title={`${BAND_META[b].label} · SLA ${BAND_META[b].text}`}
+                className={cx(
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-all",
+                  active ? "shadow-card" : "text-ink-faint hover:text-ink-muted",
+                )}
+                style={active ? { background: `color-mix(in srgb, ${c} 14%, rgb(var(--c-surface)))`, color: c } : undefined}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: c, opacity: active ? 1 : 0.45 }} />
+                {BAND_META[b].label}
+              </button>
+            );
+          })}
+        </div>
         <select className="input w-auto" value={team} onChange={(e) => setTeam(e.target.value)}>
           <option value="">All teams</option>
           {teams.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -226,8 +256,9 @@ export default function Findings() {
                       data-row={i}
                       onClick={() => setSelected(r.original.qid)}
                       onMouseEnter={() => setActiveRow(i)}
+                      style={{ animationDelay: `${Math.min(i, 14) * 22}ms` }}
                       className={cx(
-                        "group cursor-pointer border-b border-line/60 transition-colors last:border-0",
+                        "group cursor-pointer border-b border-line/60 transition-colors last:border-0 animate-row-in",
                         isActive ? "bg-sage/[0.07]" : "hover:bg-surface-2/70",
                       )}
                     >

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Bot, Send, Sparkles, User } from "lucide-react";
 import { streamSSE } from "@/lib/api";
 import { useKpis } from "@/lib/hooks";
 import { cx } from "@/lib/format";
-import { OfflineNotice, SectionTitle } from "@/components/ui";
+import { OfflineNotice, SectionTitle, useSpotlight } from "@/components/ui";
 
 interface Msg { role: "user" | "assistant"; content: string; }
 
@@ -14,12 +14,42 @@ const PROMPTS = [
   "Which team owns the highest aggregate risk, and what should they do first?",
 ];
 
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-sage-bright animate-typing-dot"
+          style={{ animationDelay: `${i * 0.18}s` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function Avatar({ role }: { role: Msg["role"] }) {
+  return (
+    <span
+      className={cx(
+        "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border",
+        role === "assistant"
+          ? "border-sage/30 bg-gradient-to-br from-sage/20 to-forest-lit/10 text-sage-bright"
+          : "border-line bg-surface-2 text-ink-muted",
+      )}
+    >
+      {role === "assistant" ? <Bot size={15} /> : <User size={15} />}
+    </span>
+  );
+}
+
 export default function Analyst() {
   const { data: kpis } = useKpis();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const spotlight = useSpotlight();
 
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
@@ -63,15 +93,23 @@ export default function Analyst() {
         <div ref={ref} className="flex-1 space-y-4 overflow-y-auto p-6">
           {messages.length === 0 ? (
             <div className="mx-auto max-w-2xl pt-8">
-              <div className="mb-4 flex items-center gap-2 text-sage-bright">
-                <Sparkles size={18} /> <span className="font-medium">Ask the analyst anything about your exposure.</span>
+              <div className="mb-1 flex items-center gap-2.5">
+                <span className="grid h-10 w-10 place-items-center rounded-2xl border border-sage/30 bg-gradient-to-br from-sage/20 to-forest-lit/10 text-sage-bright shadow-glow animate-glow-breathe">
+                  <Sparkles size={18} />
+                </span>
+                <div>
+                  <div className="font-display font-semibold text-ink">Ask the analyst anything about your exposure.</div>
+                  <div className="text-xs text-ink-faint">Streaming answers, grounded in this enterprise's live data.</div>
+                </div>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {PROMPTS.map((p) => (
+              <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+                {PROMPTS.map((p, i) => (
                   <button
                     key={p}
                     onClick={() => ask(p)}
-                    className="rounded-xl border border-line bg-surface-2/60 p-4 text-left text-sm text-ink-muted transition hover:border-sage/40 hover:text-ink"
+                    onMouseMove={spotlight}
+                    style={{ animationDelay: `${120 + i * 60}ms` }}
+                    className="spot rounded-xl border border-line bg-surface-2/60 p-4 text-left text-sm text-ink-muted transition-all duration-200 animate-fade-up hover:-translate-y-0.5 hover:border-sage/40 hover:text-ink hover:shadow-card"
                   >
                     {p}
                   </button>
@@ -80,21 +118,39 @@ export default function Analyst() {
             </div>
           ) : (
             messages.map((m, i) => (
-              <div key={i} className={cx("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+              <div
+                key={i}
+                className={cx(
+                  "flex items-start gap-2.5 animate-row-in",
+                  m.role === "user" ? "flex-row-reverse" : "flex-row",
+                )}
+              >
+                <Avatar role={m.role} />
                 <div
                   className={cx(
-                    "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                    m.role === "user" ? "bg-sage/15 text-ink" : "border border-line bg-surface-2 text-ink-muted",
+                    "max-w-[78%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                    m.role === "user"
+                      ? "rounded-tr-md border border-sage/25 bg-sage/15 text-ink"
+                      : "rounded-tl-md border border-line bg-surface-2 text-ink-muted",
                   )}
                 >
-                  {m.content || <span className="animate-pulse-dot text-ink-faint">▍</span>}
+                  {m.content || <TypingDots />}
                 </div>
               </div>
             ))
           )}
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); ask(input); }} className="flex items-center gap-2 border-t border-line p-4">
-          <input className="input" placeholder="Ask about attack paths, ownership, remediation priorities…" value={input} disabled={busy} onChange={(e) => setInput(e.target.value)} />
+        <form
+          onSubmit={(e) => { e.preventDefault(); ask(input); }}
+          className="flex items-center gap-2 border-t border-line bg-surface/60 p-4 backdrop-blur"
+        >
+          <input
+            className="input transition-shadow focus:shadow-glow"
+            placeholder="Ask about attack paths, ownership, remediation priorities…"
+            value={input}
+            disabled={busy}
+            onChange={(e) => setInput(e.target.value)}
+          />
           <button type="submit" className="btn-primary" disabled={busy || !input.trim()}>
             <Send size={15} /> Send
           </button>

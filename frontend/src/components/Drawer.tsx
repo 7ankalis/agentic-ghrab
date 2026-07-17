@@ -31,7 +31,7 @@ export default function Drawer({
             onClick={onClose}
           />
           <motion.aside
-            className="fixed inset-y-0 right-0 z-50 flex flex-col border-l border-line-strong bg-surface shadow-pop"
+            className="fixed inset-y-0 right-0 z-50 flex flex-col overflow-hidden rounded-l-2xl border-l border-line-strong bg-surface shadow-pop"
             style={{ width, maxWidth: "94vw" }}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
