@@ -6,7 +6,7 @@ import {
   Activity, AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronUp, Circle,
   Database, FileDown, FileText, GitBranch, LayoutDashboard, Loader2,
   MessageSquare, Moon, Power, RefreshCw, Network, ScrollText, Search, Settings as SettingsIcon,
-  ShieldCheck, Share2, Sparkles, Sun, Tags, Terminal, Users, XCircle, Zap,
+  ShieldCheck, Share2, Sparkles, Sun, Tags, Terminal, TrendingUp, Users, XCircle, Zap,
 } from "lucide-react";
 import { api, streamSSE } from "@/lib/api";
 import { useAgentLog } from "@/lib/agentLog";
@@ -31,6 +31,7 @@ const NAV = [
   { to: "/attack-paths", label: "Attack Paths", icon: GitBranch },
   { to: "/correlation", label: "Correlation", icon: Network },
   { to: "/teams", label: "Teams", icon: Users },
+  { to: "/trends", label: "Risk Trend", icon: TrendingUp },
   { to: "/compliance", label: "Compliance", icon: ShieldCheck },
   { to: "/analyst", label: "AI Analyst", icon: MessageSquare },
   { to: "/logs", label: "Agent Logs", icon: Terminal },

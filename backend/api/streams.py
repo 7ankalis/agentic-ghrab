@@ -5,7 +5,7 @@ import asyncio
 import queue
 import threading
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -15,10 +15,32 @@ from api import serializers as S
 from api import state
 from api.sse import SSE_HEADERS, sse as _sse
 from api.state import get_analysis, runtime_settings
-from core.config import active_dataset_key
+from core import ratelimit
+from core.config import RATE_LIMIT_ANALYZE_PER_HOUR, RATE_LIMIT_CHAT_PER_MINUTE, active_dataset_key
 from db import repository
 
 router = APIRouter(prefix="/api")
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_rate_limit(request: Request, endpoint: str, limit: int, window_sec: float) -> None:
+    """Raises 429 before any LLM spend happens if `request`'s IP has hit
+    `limit` calls to `endpoint` within `window_sec` seconds. See
+    core/ratelimit.py for why IP is the identity signal (no auth layer)."""
+    result = ratelimit.check(f"{_client_ip(request)}:{endpoint}", limit, window_sec)
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limited",
+                "message": f"Too many requests to /{endpoint} from this IP — "
+                           f"try again in {result.retry_after:.0f}s.",
+                "retry_after": round(result.retry_after, 1),
+            },
+        )
 
 
 class AnalyzeBody(BaseModel):
@@ -121,10 +143,11 @@ def analyze_status():
 
 
 @router.post("/analyze")
-async def analyze(body: AnalyzeBody):
+async def analyze(body: AnalyzeBody, request: Request):
     """Kick off (or attach to) the pipeline run, streaming each stage as it
     happens. If a run is already in flight, this attaches to it — replaying
     the progress so far — instead of starting a redundant second run."""
+    _enforce_rate_limit(request, "analyze", RATE_LIMIT_ANALYZE_PER_HOUR, 3600.0)
     _broadcast.start(body.force_refresh)
     q, backlog = _broadcast.subscribe()
 
@@ -211,7 +234,8 @@ def _paths_context(result) -> str:
 
 
 @router.post("/chat")
-async def chat(body: ChatBody):
+async def chat(body: ChatBody, request: Request):
+    _enforce_rate_limit(request, "chat", RATE_LIMIT_CHAT_PER_MINUTE, 60.0)
     result = get_analysis()
     if not result.ai_enabled:
         async def offline():

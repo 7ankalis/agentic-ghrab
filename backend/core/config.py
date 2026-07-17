@@ -178,6 +178,18 @@ LLM_BACKOFF_MAX_SEC = _env_float("LLM_BACKOFF_MAX_SEC", 60.0)
 def provider_min_interval(provider_key: str) -> float:
     return PROVIDER_MIN_INTERVAL.get(provider_key, LLM_MIN_INTERVAL_SEC)
 
+
+# --- Inbound API rate limiting --------------------------------------------------
+# `/analyze` and `/chat` are the only endpoints that spend real LLM money (see
+# core/ratelimit.py); everything else is a read of already-computed state. This
+# is IP-keyed, not per-operator, since the app has no auth layer — see
+# core/ratelimit.py's docstring for why that's a stopgap, not a real quota
+# system. Defaults are sized for a single-operator lab tool (stop a runaway
+# retry loop), not a public service. Tunable via env, same as the outbound
+# LLM_* throttling above.
+RATE_LIMIT_ANALYZE_PER_HOUR = _env_int("RATE_LIMIT_ANALYZE_PER_HOUR", 6)
+RATE_LIMIT_CHAT_PER_MINUTE = _env_int("RATE_LIMIT_CHAT_PER_MINUTE", 10)
+
 AGENT_ROLE_LABELS = {
     "correlation": "Correlation Agent — cross-references CMDB, assets, ownership",
     "attack_path": "Attack Path Agent — reconstructs & explains attack chains",

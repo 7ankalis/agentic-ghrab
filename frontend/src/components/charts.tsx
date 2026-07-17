@@ -1,6 +1,6 @@
 import {
-  Bar, BarChart, Cell, LabelList, ReferenceLine, ResponsiveContainer, Scatter,
-  ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
+  Area, AreaChart, Bar, BarChart, Cell, LabelList, ReferenceLine, ResponsiveContainer,
+  Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from "recharts";
 import { BAND_META, BAND_ORDER, bandColor } from "@/lib/format";
 import { useChartColors } from "@/lib/chartColors";
@@ -102,6 +102,85 @@ export function RiskScatter({ data }: { data: Overview["cvss_vs_grs"] }) {
           />
         ))}
       </ScatterChart>
+    </ResponsiveContainer>
+  );
+}
+
+export interface GrsTrendPoint { label: string; avg_grs: number }
+
+/** Avg GRS across completed runs, oldest → newest. Used by the Risk Trend
+ * screen (features/trends) — kept here alongside the other charts since it
+ * shares the same theme-aware color/tooltip conventions. */
+export function GrsTrendChart({ data }: { data: GrsTrendPoint[] }) {
+  const colors = useChartColors();
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  return (
+    <ResponsiveContainer width="100%" height={230}>
+      <AreaChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 4 }}>
+        <defs>
+          <linearGradient id="grsTrendFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(var(--c-sage-bright))" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="rgb(var(--c-sage-bright))" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis dataKey="label" {...AXIS} axisLine={false} tickLine={false} minTickGap={24} />
+        <YAxis domain={[0, 100]} {...AXIS} axisLine={false} tickLine={false} width={28} />
+        <Tooltip
+          cursor={{ stroke: colors.cursorStroke }}
+          content={({ active, payload, label }) =>
+            active && payload?.length ? (
+              <TooltipBox>
+                <div className="text-ink-muted">{label}</div>
+                <span className="font-semibold text-ink">avg GRS {payload[0].value}</span>
+              </TooltipBox>
+            ) : null
+          }
+        />
+        <Area
+          type="monotone"
+          dataKey="avg_grs"
+          stroke="rgb(var(--c-sage-bright))"
+          strokeWidth={2}
+          fill="url(#grsTrendFill)"
+          isAnimationActive={false}
+          dot={{ r: 3, fill: "rgb(var(--c-sage-bright))", strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+export type BandTrendPoint = { label: string } & Record<Band, number>;
+
+/** Band-distribution counts across completed runs, stacked per run — the
+ * Risk Trend screen's second view of the same run history. */
+export function BandTrendChart({ data }: { data: BandTrendPoint[] }) {
+  const colors = useChartColors();
+  const AXIS = { stroke: colors.axisStroke, fontSize: 11, fontFamily: "Inter" };
+  return (
+    <ResponsiveContainer width="100%" height={230}>
+      <BarChart data={data} margin={{ left: 4, right: 12, top: 8, bottom: 4 }}>
+        <XAxis dataKey="label" {...AXIS} axisLine={false} tickLine={false} minTickGap={24} />
+        <YAxis allowDecimals={false} {...AXIS} axisLine={false} tickLine={false} width={28} />
+        <Tooltip
+          cursor={{ fill: colors.cursorFill }}
+          content={({ active, payload, label }) =>
+            active && payload?.length ? (
+              <TooltipBox>
+                <div className="mb-1 text-ink-muted">{label}</div>
+                {[...payload].reverse().map((p) => (
+                  <div key={p.dataKey as string} style={{ color: bandColor(p.dataKey as string) }}>
+                    {BAND_META[p.dataKey as Band].label}: {p.value}
+                  </div>
+                ))}
+              </TooltipBox>
+            ) : null
+          }
+        />
+        {BAND_ORDER.map((b) => (
+          <Bar key={b} dataKey={b} stackId="bands" fill={bandColor(b)} isAnimationActive={false} />
+        ))}
+      </BarChart>
     </ResponsiveContainer>
   );
 }

@@ -5,6 +5,7 @@ import Findings from "./features/findings/Findings";
 import AttackPaths from "./features/attackpaths/AttackPaths";
 import Correlation from "./features/correlation/Correlation";
 import Teams from "./features/teams/Teams";
+import Trends from "./features/trends/Trends";
 import Compliance from "./features/compliance/Compliance";
 import Analyst from "./features/analyst/Analyst";
 import Logs from "./features/logs/Logs";
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="attack-paths" element={<AttackPaths />} />
         <Route path="correlation" element={<Correlation />} />
         <Route path="teams" element={<Teams />} />
+        <Route path="trends" element={<Trends />} />
         <Route path="compliance" element={<Compliance />} />
         <Route path="analyst" element={<Analyst />} />
         <Route path="logs" element={<Logs />} />

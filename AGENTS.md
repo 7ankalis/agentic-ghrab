@@ -11,6 +11,9 @@ This document maps every agent in the system, what it does, and which APIs it ca
   - `LLM_MIN_INTERVAL_SEC` (default `4.0`) — global min seconds between same-provider calls; per-provider overrides `LLM_MIN_INTERVAL_GROQ` (2.5), `LLM_MIN_INTERVAL_GEMINI` (4.5), `LLM_MIN_INTERVAL_MISTRAL` (1.5).
   - `LLM_MAX_RETRIES` (default `4`), `LLM_BACKOFF_BASE_SEC` (default `5.0`), `LLM_BACKOFF_MAX_SEC` (default `60.0`).
   - Raise the intervals if you still hit limits; set `LLM_MIN_INTERVAL_SEC=0` to disable throttling entirely (e.g. on a paid tier).
+- **Inbound API rate limiting** (`backend/core/ratelimit.py`): the platform has **no authentication layer** — anyone who can reach the API can call it — so `POST /api/analyze` and `POST /api/chat` (the only two endpoints that trigger real LLM spend) are additionally guarded by an in-memory, IP-keyed sliding-window limiter, checked before the SSE stream opens. This is a stopgap against a runaway client, not a real multi-tenant quota (IPs are spoofable / shared behind NAT); real auth would be needed for that. Tunable via env:
+  - `RATE_LIMIT_ANALYZE_PER_HOUR` (default `6`), `RATE_LIMIT_CHAT_PER_MINUTE` (default `10`).
+  - Exceeding the limit returns `429` with a JSON body (`message`, `retry_after` seconds) instead of a silent failure or a mid-stream error.
 - No scanning/threat-intel APIs are used anywhere (no Shodan, VirusTotal, NVD, Censys, Nmap wrapper, or raw HTTP calls found). All vulnerability/asset data is static and local: `backend/data/ghrab_vulnerabilities.csv`, `ghrab_architecture.md`, and CMDB parsing in `core/cmdb.py`.
 - The deterministic risk/graph engine (`core/risk_engine.py`, `core/attack_graph.py`, `core/capability.py`, `core/graph.py`) needs no network access or API key — it computes candidate attack chains from local data. Only the AI-enrichment agents below need an LLM provider configured.
 
