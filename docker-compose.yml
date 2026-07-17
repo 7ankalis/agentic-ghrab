@@ -1,21 +1,34 @@
+# Production compose for an Azure VM behind Cloudflare (Flexible SSL).
+# Only port 80 is published — Cloudflare talks plain HTTP to the origin.
+# Set VOC_DOMAIN in .env (e.g. VOC_DOMAIN=voc.example.com).
+
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     env_file:
       - .env
     environment:
-      VOC_CORS_ORIGINS: "http://localhost:8080"
-    ports:
-      - "8000:8000"
+      VOC_CORS_ORIGINS: "https://${VOC_DOMAIN:-localhost}"
+    # No published ports: only nginx reaches it over the internal network.
     volumes:
       - ./backend/data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      - ./frontend/certs:/etc/nginx/certs:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
