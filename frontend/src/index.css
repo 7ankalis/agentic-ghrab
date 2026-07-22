@@ -276,6 +276,9 @@
  * canvas container itself may use backdrop-blur/filters freely. */
 .ag-canvas {
   animation: ag-canvas-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Subtle blueprint texture so the void between nodes reads as a surface */
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 @keyframes ag-canvas-in {
   from {

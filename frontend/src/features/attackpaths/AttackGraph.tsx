@@ -1,31 +1,32 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import cytoscape, { type Core, type ElementDefinition, type StylesheetJsonBlock } from "cytoscape";
-import fcose from "cytoscape-fcose";
+import { useEffect, useId, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import cytoscape, { type Core, type EdgeSingular, type ElementDefinition, type StylesheetJsonBlock } from "cytoscape";
 import cyNavigator from "cytoscape-navigator";
 import "cytoscape-navigator/cytoscape.js-navigator.css";
 import {
-  Crosshair, Focus, Layers, Link2, Maximize2, Minimize2, Pause, Play,
+  Crosshair, Focus, Gem, Layers, Link2, Maximize2, Minimize2, Pause, Play,
   RotateCcw, Rows3, Search, Target, Tag as TagIcon, Waypoints, X, Zap,
 } from "lucide-react";
 import { EDGE_META, bandColor, bandForGrs, BAND_META, cx } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
-import { roleIcon, iconDataUri } from "./nodeVisuals";
+import { roleIcon } from "./nodeVisuals";
 import type { AttackPath, GraphNode, GraphPayload } from "@/lib/types";
 
 let extensionsRegistered = false;
 function ensureExtensionsRegistered() {
   if (extensionsRegistered) return;
-  cytoscape.use(fcose);
   cyNavigator(cytoscape);
   extensionsRegistered = true;
 }
 
 type LayoutMode = "flow" | "zones" | "radial";
 
-const CIRCLED = ["", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"];
-function circled(n: number): string {
-  return CIRCLED[n] ?? `(${n})`;
-}
+// Node cards are drawn twice: cytoscape paints the tinted card shape on canvas
+// (which is also what the minimap thumbnails show), and a pan/zoom-synced DOM
+// overlay renders the crisp content — hostname, role, GRS chip, badges — as
+// real text that stays sharp at every zoom level.
+const CARD_W = 190;
+const CARD_H = 58;
+const INET_R = 33;
 
 // ── Theme-resolved palette ───────────────────────────────────────────────
 // Cytoscape draws on <canvas>, so its stylesheet needs real rgb(...) strings —
@@ -59,11 +60,19 @@ function useResolvedPalette(theme: string): Palette {
   return palette;
 }
 
+// The same caveat applies to color-mix(): valid CSS, unparseable on canvas.
+// Blend the two rgb() strings numerically instead.
+function mixRgb(a: string, b: string, weightA: number): string {
+  const pa = a.match(/\d+/g)?.map(Number) ?? [128, 128, 128];
+  const pb = b.match(/\d+/g)?.map(Number) ?? [128, 128, 128];
+  const c = pa.map((v, i) => Math.round(v * weightA + (pb[i] ?? 128) * (1 - weightA)));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
 // format.ts's bandColor()/EDGE_META[k].color return "rgb(var(--c-x))" strings
-// meant for the DOM's CSS cascade to resolve. Cytoscape draws on <canvas> —
-// its stylesheet parser has no notion of custom properties, so those strings
-// silently fail to parse there. These maps mirror the same band/kind → hue
-// associations but resolve through the already-computed `palette` instead.
+// meant for the DOM's CSS cascade to resolve — the overlay cards use those
+// directly. These maps mirror the same band/kind → hue associations for the
+// canvas side, resolved through the already-computed `palette`.
 const BAND_PALETTE_KEY: Record<string, keyof Palette> = {
   IMMEDIATE: "c-immediate", ACT: "c-act", ATTEND: "c-attend", "TRACK*": "c-track2", TRACK: "c-track",
 };
@@ -71,7 +80,24 @@ const EDGE_KIND_PALETTE_KEY: Record<string, keyof Palette> = {
   entry: "c-immediate", segmentation: "c-act", credential: "c-attend", domain: "c-purple", lateral: "c-track2",
 };
 
-// ── Layout engines (ported from the previous BFS-based scheme) ──────────
+function accentKey(kind: string, crown: boolean, grs: number): keyof Palette {
+  if (kind === "internet") return "c-immediate";
+  if (crown) return "c-purple";
+  return grs > 0 ? BAND_PALETTE_KEY[bandForGrs(grs)] : "c-ink-faint";
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [reduce, setReduce] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduce(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduce;
+}
+
+// ── Layout engines (BFS-based, spacing tuned to the card footprint) ──────
 
 function bfsDistance(graph: GraphPayload): Map<string, number> {
   const adj = new Map<string, string[]>();
@@ -109,8 +135,8 @@ function layoutFlow(graph: GraphPayload): LayoutResult {
     layers.get(l)!.push(n.id);
   });
   const pos = new Map<string, { x: number; y: number }>();
-  const GAP = 150;
-  const COL = 340;
+  const GAP = 98;
+  const COL = 312;
   layers.forEach((ids, l) => {
     ids.sort((a, b) => {
       const na = byId.get(a)!, nb = byId.get(b)!;
@@ -133,9 +159,9 @@ function layoutZones(graph: GraphPayload): LayoutResult {
   });
   zones.sort((a, b) => (zoneMinLayer.get(a)! - zoneMinLayer.get(b)!) || a.localeCompare(b));
   const laneOf = new Map(zones.map((z, i) => [z, i]));
-  const COL = 340;
-  const STEP = 148;
-  const PAD = 110;
+  const COL = 312;
+  const STEP = 92;
+  const PAD = 104;
 
   const cell = new Map<string, string[]>();
   graph.nodes.forEach((n) => {
@@ -183,8 +209,8 @@ function layoutRadial(graph: GraphPayload): LayoutResult {
     ringNodes.get(d)!.push(n.id);
   });
   const pos = new Map<string, { x: number; y: number }>([["INTERNET", { x: 0, y: 0 }]]);
-  const RING = 300;
-  const MIN_ARC = 150;
+  const RING = 285;
+  const MIN_ARC = 245;
   const rings: { d: number; r: number }[] = [];
   ringNodes.forEach((ids, d) => {
     ids.sort((a, b) => {
@@ -208,6 +234,114 @@ const LAYOUTS: Record<LayoutMode, (g: GraphPayload) => LayoutResult> = {
   zones: layoutZones,
   radial: layoutRadial,
 };
+
+// ── DOM overlay pieces ───────────────────────────────────────────────────
+
+function NodeCard({
+  node, x, y, dim, hovered, pinned, step, cardRef,
+}: {
+  node: GraphNode; x: number; y: number; dim: boolean; hovered: boolean;
+  pinned: boolean; step: number | null; cardRef: (el: HTMLDivElement | null) => void;
+}) {
+  const Icon = roleIcon(node.role ?? "", node.label, node.kind);
+
+  if (node.kind === "internet") {
+    return (
+      <div
+        ref={cardRef}
+        className={cx("absolute flex select-none flex-col items-center transition-opacity duration-200", dim ? "opacity-[0.08]" : "opacity-100")}
+        style={{ left: x - 60, top: y - INET_R, width: 120 }}
+      >
+        <span className="grid place-items-center text-immediate" style={{ height: INET_R * 2 }}>
+          <Icon size={26} />
+        </span>
+        <span className="mt-1.5 font-mono text-[10px] font-bold tracking-[0.22em] text-ink">INTERNET</span>
+      </div>
+    );
+  }
+
+  const accent = node.crown ? "rgb(var(--c-purple))" : node.grs > 0 ? bandColor(bandForGrs(node.grs)) : "rgb(var(--c-ink-faint))";
+  const qidCount = node.qids?.length ?? 0;
+  return (
+    <div
+      ref={cardRef}
+      className={cx(
+        "absolute select-none transition-[opacity,transform] duration-200",
+        dim ? "opacity-[0.08]" : "opacity-100",
+        hovered && !dim && "scale-[1.04]",
+      )}
+      style={{ left: x - CARD_W / 2, top: y - CARD_H / 2, width: CARD_W, height: CARD_H }}
+    >
+      <div className="flex h-full items-center gap-2 px-2">
+        <span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+          style={{ background: `color-mix(in srgb, ${accent} 15%, transparent)`, color: accent }}
+        >
+          <Icon size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            {node.entry && <Crosshair size={9} className="shrink-0 text-immediate" />}
+            <span className="truncate font-mono text-[11.5px] font-bold leading-tight text-ink">{node.label}</span>
+          </div>
+          <div className="truncate text-[9px] leading-tight text-ink-faint">{node.role || node.zone}</div>
+        </div>
+        {(node.grs > 0 || qidCount > 0) && (
+          <div className="flex shrink-0 flex-col items-end gap-[3px]">
+            {node.grs > 0 && (
+              <span
+                className="rounded px-1 py-px font-mono text-[9.5px] font-bold leading-none"
+                style={{ color: accent, background: `color-mix(in srgb, ${accent} 14%, transparent)` }}
+                title={`GRS ${node.grs} · ${BAND_META[bandForGrs(node.grs)].label}`}
+              >
+                {node.grs}
+              </span>
+            )}
+            {qidCount > 0 && (
+              <span className="font-mono text-[8px] leading-none text-ink-faint">{qidCount} QID{qidCount > 1 ? "s" : ""}</span>
+            )}
+          </div>
+        )}
+      </div>
+      {node.crown && (
+        <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full border border-purple/40 bg-surface text-purple shadow-card">
+          <Gem size={10} />
+        </span>
+      )}
+      {step != null && step > 0 && (
+        <span
+          className={cx("absolute -left-2 -top-2 grid h-5 w-5 place-items-center rounded-full font-mono text-[10px] font-bold text-white shadow-card", pinned && "ring-2 ring-surface")}
+          style={{ background: accent }}
+        >
+          {step}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EdgeChip({
+  x, y, kind, qid, inv, chipRef,
+}: {
+  x: number; y: number; kind: string; qid: number | null; inv: number;
+  chipRef: (el: HTMLDivElement | null) => void;
+}) {
+  const meta = EDGE_META[kind] ?? EDGE_META.lateral;
+  return (
+    <div
+      ref={chipRef}
+      className="absolute animate-row-in whitespace-nowrap rounded-md border bg-surface px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink shadow-card"
+      style={{
+        left: x, top: y,
+        transform: `translate(-50%,-50%) scale(${inv})`,
+        borderColor: `color-mix(in srgb, ${meta.color} 45%, rgb(var(--c-line)))`,
+      }}
+    >
+      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: meta.color }} />
+      {qid != null ? `QID ${qid}` : meta.label}
+    </div>
+  );
+}
 
 // ── Node inspector (docked, not floating) ────────────────────────────────
 
@@ -272,6 +406,14 @@ function NodeInspector({ node, degree, stepIndex }: { node: GraphNode; degree: n
         <InspectorRow label="Findings">{node.qids?.length ?? 0}</InspectorRow>
         <InspectorRow label="Connections">{degree}</InspectorRow>
       </dl>
+      {(node.qids?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-1 px-4 pb-3">
+          {node.qids!.slice(0, 8).map((q) => (
+            <span key={q} className="rounded border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-[9.5px] text-ink-muted">QID {q}</span>
+          ))}
+          {node.qids!.length > 8 && <span className="self-center text-[9.5px] text-ink-faint">+{node.qids!.length - 8} more</span>}
+        </div>
+      )}
       {(node.entry || node.crown) && (
         <div className="flex flex-wrap gap-1 border-t border-line px-4 py-2.5">
           {node.entry && (
@@ -281,7 +423,7 @@ function NodeInspector({ node, degree, stepIndex }: { node: GraphNode; degree: n
           )}
           {node.crown && (
             <span className="inline-flex items-center gap-1 rounded bg-purple/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-purple">
-              ★ Crown jewel
+              <Gem size={9} /> Crown jewel
             </span>
           )}
         </div>
@@ -293,6 +435,11 @@ function NodeInspector({ node, degree, stepIndex }: { node: GraphNode; degree: n
 // ── Main ─────────────────────────────────────────────────────────────────
 
 const EDGE_KINDS = ["entry", "segmentation", "credential", "domain", "lateral"] as const;
+// Floor for the whole-graph fit. Because node text is now DOM-rendered it
+// stays crisp when small, so this can sit low enough that a wide flow layout
+// fits fully instead of clipping cards at the viewport edge — panning and the
+// minimap cover the rest when a dataset is genuinely huge.
+const FIT_MIN_ZOOM = 0.4;
 
 export default function AttackGraph({
   graph, selected, replayStep, setReplayStep, onClearSelection,
@@ -305,12 +452,21 @@ export default function AttackGraph({
 }) {
   const [theme] = useTheme();
   const palette = useResolvedPalette(theme);
+  const reduceMotion = usePrefersReducedMotion();
   const navMountId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const cyContainerRef = useRef<HTMLDivElement>(null);
   const navContainerRef = useRef<HTMLDivElement>(null);
+  const overlayInnerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const navRef = useRef<{ destroy?: () => void } | null>(null);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const chipRefs = useRef(new Map<string, HTMLDivElement>());
+  // Manual drag positions layered over the computed layout, and edge-chip
+  // midpoints (model coords) sampled from cytoscape after each rebuild.
+  const posOverrideRef = useRef(new Map<string, { x: number; y: number }>());
+  const chipPosRef = useRef(new Map<string, { x: number; y: number }>());
+  const chipInvRef = useRef(1);
 
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("flow");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -323,8 +479,13 @@ export default function AttackGraph({
   const [enabledKinds, setEnabledKinds] = useState<Record<string, boolean>>(
     () => Object.fromEntries(EDGE_KINDS.map((k) => [k, k !== "lateral"])),
   );
+  // Bumped after cytoscape elements are (re)built so effects that sample
+  // geometry off the instance re-run once positions actually exist.
+  const [geomVersion, bumpGeom] = useReducer((x: number) => x + 1, 0);
+  const [chipTick, bumpChipTick] = useReducer((x: number) => x + 1, 0);
 
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
+  const edgeById = useMemo(() => new Map(graph.edges.map((e) => [`${e.source}__${e.target}`, e])), [graph]);
 
   const neighbors = useMemo(() => {
     const m = new Map<string, Set<string>>();
@@ -335,6 +496,13 @@ export default function AttackGraph({
     graph.edges.forEach((e) => { link(e.source, e.target); link(e.target, e.source); });
     return m;
   }, [graph]);
+
+  const layoutRes = useMemo(() => {
+    // A new layout invalidates any hand-dragged positions; clearing here (not
+    // in an effect) keeps the very next render from painting stale overrides.
+    posOverrideRef.current = new Map();
+    return LAYOUTS[layoutMode](graph);
+  }, [graph, layoutMode]);
 
   const pathNodeIds = useMemo(
     () => (selected ? new Set<string>(["INTERNET", ...selected.steps.map((s) => s.host)]) : null),
@@ -374,8 +542,63 @@ export default function AttackGraph({
     return s;
   }, [query, graph]);
 
+  const focusSet = useMemo(() => {
+    if (pathNodeIds || matchSet || !focusOnHover || !hoveredId) return null;
+    return new Set<string>([hoveredId, ...(neighbors.get(hoveredId) ?? [])]);
+  }, [pathNodeIds, matchSet, focusOnHover, hoveredId, neighbors]);
+
+  // During replay, path nodes past the frontier stay hidden along with
+  // everything off-path — the chain materialises hop by hop.
+  const nodeRevealed = (id: string): boolean => {
+    if (!pathNodeIds) return true;
+    if (!pathNodeIds.has(id)) return false;
+    if (replayStep < 0) return true;
+    return (stepIndexOf.get(id) ?? Infinity) <= replayStep + 1;
+  };
+  const nodeDimmed = (id: string): boolean => {
+    if (pathNodeIds) return !nodeRevealed(id);
+    if (matchSet) return !matchSet.has(id);
+    if (focusSet) return !focusSet.has(id);
+    return false;
+  };
+
+  // QID chips: on the selected path they track the replay frontier; with no
+  // selection they surface on hover so a QID is always one mouse-move away.
+  const chipEdges = useMemo(() => {
+    if (!showLabels) return [] as { id: string; kind: string; qid: number | null }[];
+    if (selected) {
+      return pathEdgeKeys
+        .filter((_, i) => replayStep < 0 || i <= replayStep)
+        .map((key) => {
+          const e = edgeById.get(key);
+          return e ? { id: key, kind: e.kind, qid: e.qid } : null;
+        })
+        .filter((c): c is { id: string; kind: string; qid: number | null } => c !== null);
+    }
+    if (hoveredId) {
+      return graph.edges
+        .filter((e) => (e.source === hoveredId || e.target === hoveredId) && (enabledKinds[e.kind] ?? true))
+        .map((e) => ({ id: `${e.source}__${e.target}`, kind: e.kind, qid: e.qid }));
+    }
+    return [];
+  }, [showLabels, selected, pathEdgeKeys, replayStep, hoveredId, graph.edges, enabledKinds, edgeById]);
+
   const activeId = pinnedId ?? hoveredId;
   const inspectedNode = activeId ? byId.get(activeId) ?? null : null;
+
+  // Keep the DOM overlay glued to cytoscape's viewport. Runs per pan/zoom
+  // frame, so it mutates styles directly instead of going through React.
+  const syncOverlay = () => {
+    const cy = cyRef.current, inner = overlayInnerRef.current;
+    if (!cy || !inner) return;
+    const pan = cy.pan(), zoom = cy.zoom();
+    inner.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+    // Chips counter-scale so a QID stays legible even when the graph is
+    // zoomed out to fit — capped so they never dwarf their edge.
+    const inv = Math.min(1.7, Math.max(1, 1 / zoom));
+    chipInvRef.current = inv;
+    chipRefs.current.forEach((el) => { el.style.transform = `translate(-50%,-50%) scale(${inv})`; });
+  };
 
   // ── Mount cytoscape once ──────────────────────────────────────────────
   useEffect(() => {
@@ -385,20 +608,54 @@ export default function AttackGraph({
       container: cyContainerRef.current,
       elements: [],
       style: [],
-      minZoom: 0.15,
-      maxZoom: 2.2,
+      minZoom: 0.18,
+      maxZoom: 2.5,
       wheelSensitivity: 0.22,
       pixelRatio: "auto",
     });
     cyRef.current = cy;
 
-    cy.on("mouseover", "node[kind]", (evt) => setHoveredId(evt.target.id()));
-    cy.on("mouseout", "node[kind]", () => setHoveredId(null));
+    cy.on("mouseover", "node[kind]", (evt) => {
+      setHoveredId(evt.target.id());
+      if (cyContainerRef.current) cyContainerRef.current.style.cursor = "pointer";
+    });
+    cy.on("mouseout", "node[kind]", () => {
+      setHoveredId(null);
+      if (cyContainerRef.current) cyContainerRef.current.style.cursor = "";
+    });
     cy.on("tap", "node[kind]", (evt) => {
       const id = evt.target.id();
       setPinnedId((p) => (p === id ? null : id));
     });
     cy.on("tap", (evt) => { if (evt.target === cy) setPinnedId(null); });
+    cy.on("viewport", syncOverlay);
+
+    // Dragging a node: move its overlay card and re-anchor any QID chips on
+    // its edges, all without a React render.
+    cy.on("position", "node[kind]", (evt) => {
+      const id = evt.target.id();
+      const p = evt.target.position();
+      posOverrideRef.current.set(id, { x: p.x, y: p.y });
+      const el = cardRefs.current.get(id);
+      if (el) {
+        if (evt.target.data("kind") === "internet") {
+          el.style.left = `${p.x - 60}px`;
+          el.style.top = `${p.y - INET_R}px`;
+        } else {
+          el.style.left = `${p.x - CARD_W / 2}px`;
+          el.style.top = `${p.y - CARD_H / 2}px`;
+        }
+      }
+      evt.target.connectedEdges().forEach((edge: EdgeSingular) => {
+        const chip = chipRefs.current.get(edge.id());
+        if (!chip) return;
+        const m = (edge as EdgeSingular).midpoint();
+        if (!m || !Number.isFinite(m.x)) return;
+        chipPosRef.current.set(edge.id(), m);
+        chip.style.left = `${m.x}px`;
+        chip.style.top = `${m.y}px`;
+      });
+    });
 
     return () => {
       // Navigator lifecycle is owned by the minimap effect below — destroying
@@ -410,49 +667,30 @@ export default function AttackGraph({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Build the stylesheet (theme + label-visibility dependent) ─────────
+  // ── Build the stylesheet (theme-dependent) ────────────────────────────
   const stylesheet = useMemo((): StylesheetJsonBlock[] => {
-    const nodeColor = (grs: number, crown: boolean, kind: string): string => {
-      if (kind === "internet") return palette["c-immediate"];
-      if (crown) return palette["c-purple"];
-      return grs > 0 ? palette[BAND_PALETTE_KEY[bandForGrs(grs)]] : palette["c-ink-faint"];
-    };
+    const accent = (ele: cytoscape.NodeSingular) =>
+      palette[accentKey(ele.data("kind"), ele.data("crown"), ele.data("grs"))];
     return [
       {
         selector: "node[kind]",
         style: {
           shape: "round-rectangle",
-          width: 58,
-          height: 58,
-          "background-color": (ele: cytoscape.NodeSingular) =>
-            `color-mix(in srgb, ${nodeColor(ele.data("grs"), ele.data("crown"), ele.data("kind"))} 16%, ${palette["c-surface-2"]})`,
-          "border-width": (ele: cytoscape.NodeSingular) => (ele.data("grs") > 0 ? 2 + Math.round((ele.data("grs") / 100) * 2) : 2),
-          "border-color": (ele: cytoscape.NodeSingular) => nodeColor(ele.data("grs"), ele.data("crown"), ele.data("kind")),
+          width: CARD_W,
+          height: CARD_H,
+          "background-color": (ele: cytoscape.NodeSingular) => mixRgb(accent(ele), palette["c-surface-2"], 0.1),
+          "border-width": (ele: cytoscape.NodeSingular) => (ele.data("grs") > 0 ? 1.5 + (ele.data("grs") / 100) * 2 : 1.5),
+          "border-color": accent,
           "border-style": (ele: cytoscape.NodeSingular) => (ele.data("entry") ? "dashed" : "solid"),
-          "background-image": (ele: cytoscape.NodeSingular) => ele.data("icon"),
-          "background-width": "56%",
-          "background-height": "56%",
-          "background-fit": "none",
-          "background-clip": "none",
-          label: (ele: cytoscape.NodeSingular) => ele.data("displayLabel"),
-          "font-size": 10,
-          "font-weight": 600,
-          "text-valign": "bottom",
-          "text-halign": "center",
-          "text-margin-y": 8,
-          color: palette["c-ink"],
-          "text-wrap": "wrap",
-          "text-max-width": "96px",
-          "text-outline-width": 0,
+          label: "",
+          "overlay-opacity": 0,
+          "transition-property": "opacity",
+          "transition-duration": 150,
         },
       },
       {
         selector: "node[kind = 'internet']",
-        style: { width: 78, height: 78, shape: "ellipse", "background-width": "48%", "background-height": "48%" },
-      },
-      {
-        selector: "node[?crown]",
-        style: { shape: "star", width: 70, height: 70 },
+        style: { shape: "ellipse", width: INET_R * 2, height: INET_R * 2 },
       },
       {
         selector: "node.lane",
@@ -463,20 +701,21 @@ export default function AttackGraph({
           "border-width": 1,
           "border-color": palette["c-line"],
           "border-style": "solid",
-          "padding": "34px",
+          "padding": "40px",
           label: "data(displayLabel)",
           "text-valign": "top",
           "text-halign": "center",
-          "text-margin-y": -14,
-          "font-size": 10,
+          "text-margin-y": -16,
+          "font-size": 11,
           "font-weight": 700,
+          "font-family": "Lato, system-ui, sans-serif",
           color: palette["c-ink-faint"],
           "text-transform": "uppercase",
           "text-wrap": "ellipsis",
-          "text-max-width": "130px",
+          "text-max-width": "240px",
           "text-background-color": palette["c-surface"],
           "text-background-opacity": 0.8,
-          "text-background-padding": "2px",
+          "text-background-padding": "3px",
         },
       },
       {
@@ -497,11 +736,12 @@ export default function AttackGraph({
           "background-opacity": 0,
           "border-width": 0,
           label: "data(displayLabel)",
-          "font-size": 10,
+          "font-size": 11,
+          "font-family": "Lato, system-ui, sans-serif",
           color: palette["c-ink-faint"],
           "text-background-color": palette["c-surface"],
           "text-background-opacity": 0.75,
-          "text-background-padding": "2px",
+          "text-background-padding": "3px",
           width: 1,
           height: 1,
         },
@@ -510,41 +750,44 @@ export default function AttackGraph({
         selector: "edge",
         style: {
           "curve-style": "bezier",
-          "control-point-step-size": 36,
-          width: 1.4,
+          "control-point-step-size": 40,
+          width: 1.6,
           "line-color": (ele: cytoscape.EdgeSingular) => palette[EDGE_KIND_PALETTE_KEY[ele.data("kind")] ?? "c-track2"],
           "target-arrow-color": (ele: cytoscape.EdgeSingular) => palette[EDGE_KIND_PALETTE_KEY[ele.data("kind")] ?? "c-track2"],
           "target-arrow-shape": "triangle",
-          "arrow-scale": 0.85,
+          "arrow-scale": 0.9,
           "line-style": (ele: cytoscape.EdgeSingular) => (EDGE_META[ele.data("kind")]?.dashed ? "dashed" : "solid"),
-          opacity: 0.55,
+          opacity: 0.45,
           label: "",
-          "font-size": 9,
-          "font-weight": 600,
-          "text-rotation": "autorotate",
-          "text-background-color": palette["c-surface"],
-          "text-background-opacity": 0.85,
-          "text-background-padding": "2px",
-          color: (ele: cytoscape.EdgeSingular) => palette[EDGE_KIND_PALETTE_KEY[ele.data("kind")] ?? "c-track2"],
+          "transition-property": "opacity, width",
+          "transition-duration": 150,
         },
+      },
+      {
+        selector: "edge.focushl",
+        style: { width: 2.4, opacity: 0.95 },
       },
       {
         selector: "edge.onpath",
         style: {
-          width: 3,
+          width: 3.2,
           opacity: 1,
-          "line-style": "solid",
-          label: showLabels ? "data(displayLabel)" : "",
+          // Marching dashes give the chain a direction of travel; when the
+          // user prefers reduced motion the path stays a solid line.
+          "line-style": reduceMotion ? "solid" : "dashed",
+          "line-dash-pattern": [10, 6],
+          "arrow-scale": 1.1,
           "z-index": 10,
         },
       },
-      { selector: "node.dim, edge.dim", style: { opacity: 0.08 } },
-      { selector: "node.match", style: { "border-width": 3 } },
+      { selector: "node.dim, edge.dim", style: { opacity: 0.07 } },
+      { selector: "node.match", style: { "border-width": 4 } },
+      { selector: "node.pinned", style: { "border-width": 4 } },
       { selector: "edge.hidden-kind", style: { display: "none" } },
       { selector: "node:selected", style: { "overlay-opacity": 0 } },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [palette, showLabels]);
+  }, [palette, reduceMotion]);
 
   useEffect(() => {
     cyRef.current?.style(stylesheet as never).update();
@@ -554,7 +797,7 @@ export default function AttackGraph({
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    const { pos, zones, rings } = LAYOUTS[layoutMode](graph);
+    const { pos, zones, rings } = layoutRes;
     const elements: ElementDefinition[] = [];
 
     if (layoutMode === "zones" && zones) {
@@ -562,7 +805,7 @@ export default function AttackGraph({
         // Lane compounds auto-size to a single narrow node column, so long
         // zone names (e.g. "Clinical/Biomed Critical Zone (HIPAA/FDA scope)")
         // have nowhere to render — shorten just the on-canvas caption.
-        const shortZ = z.length > 18 ? `${z.slice(0, 16)}…` : z;
+        const shortZ = z.length > 28 ? `${z.slice(0, 26)}…` : z;
         elements.push({ data: { id: `lane__${z}`, displayLabel: shortZ, fullZone: z }, classes: "lane", grabbable: false, selectable: false });
       });
     }
@@ -574,67 +817,53 @@ export default function AttackGraph({
     }
 
     graph.nodes.forEach((n) => {
-      const Icon = roleIcon(n.role ?? "", n.label, n.kind);
-      const color = n.kind === "internet" ? palette["c-immediate"] : n.crown ? palette["c-purple"] : n.grs > 0 ? palette[BAND_PALETTE_KEY[bandForGrs(n.grs)]] : palette["c-ink-faint"];
-      const stepIndex = stepIndexOf.get(n.id) ?? null;
-      const displayLabel = n.kind === "internet"
-        ? "INTERNET"
-        : stepIndex != null ? `${circled(stepIndex)} ${n.label}` : n.label;
       elements.push({
         data: {
-          id: n.id, kind: n.kind, crown: n.crown, entry: n.entry, grs: n.grs,
-          zone: n.zone, icon: iconDataUri(Icon, color), displayLabel,
+          id: n.id, kind: n.kind, crown: n.crown, entry: n.entry, grs: n.grs, zone: n.zone,
           parent: layoutMode === "zones" && n.kind !== "internet" ? `lane__${n.zone}` : undefined,
         },
         position: pos.get(n.id) ?? { x: 0, y: 0 },
       });
     });
     graph.edges.forEach((e) => {
-      const meta = EDGE_META[e.kind] ?? EDGE_META.lateral;
       elements.push({
-        data: {
-          id: `${e.source}__${e.target}`, source: e.source, target: e.target, kind: e.kind,
-          displayLabel: e.qid ? `QID ${e.qid}` : meta.label,
-        },
+        data: { id: `${e.source}__${e.target}`, source: e.source, target: e.target, kind: e.kind, qid: e.qid },
       });
     });
 
     cy.elements().remove();
     cy.add(elements);
     cy.layout({ name: "preset", fit: false }).run();
+    bumpGeom();
     const t = setTimeout(() => {
-      cy.fit(undefined, 48);
+      const fitTo = pathNodeIds
+        ? cy.filter((ele) => ele.isNode() && pathNodeIds.has(ele.id()))
+        : cy.nodes("[kind]");
+      cy.fit(fitTo, 60);
       // Zones/radial can be extremely tall or wide relative to the viewport
       // for lopsided datasets — fitting the whole thing can shrink labels
       // past legibility. Floor the zoom and re-center instead of letting
       // fit() zoom out arbitrarily far; panning covers the rest.
-      const MIN_ZOOM = 0.42;
-      if (cy.zoom() < MIN_ZOOM) {
-        cy.zoom({ level: MIN_ZOOM, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-        cy.center();
+      if (cy.zoom() < FIT_MIN_ZOOM) {
+        cy.zoom({ level: FIT_MIN_ZOOM, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+        cy.center(fitTo);
       }
+      syncOverlay();
     }, 40);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, layoutMode, palette]);
+  }, [graph, layoutMode, layoutRes, palette]);
 
   // ── Apply selection / hover / search / filter classes (no rebuild) ────
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    const focusId = !pathNodeIds && !matchSet && focusOnHover ? hoveredId : null;
-    const focusSet = focusId ? new Set<string>([focusId, ...(neighbors.get(focusId) ?? [])]) : null;
-
     cy.batch(() => {
       cy.nodes("[kind]").forEach((node) => {
         const id = node.id();
-        const onPath = pathNodeIds?.has(id) ?? false;
-        const isMatch = matchSet?.has(id) ?? false;
-        const inFocus = focusSet?.has(id) ?? false;
-        const dim = pathNodeIds ? !onPath : matchSet ? !isMatch : focusSet ? !inFocus : false;
-        node.toggleClass("dim", dim);
-        node.toggleClass("match", isMatch);
-        node.toggleClass("onpath", onPath);
+        node.toggleClass("dim", nodeDimmed(id));
+        node.toggleClass("match", matchSet?.has(id) ?? false);
+        node.toggleClass("pinned", id === pinnedId);
       });
       cy.edges().forEach((edge) => {
         const key = edge.id();
@@ -646,11 +875,61 @@ export default function AttackGraph({
         const touchesFocus = focusSet ? focusSet.has(edge.data("source")) && focusSet.has(edge.data("target")) : false;
         const dim = pathNodeIds ? !(onPath && revealed) : matchSet ? !bothMatch : focusSet ? !touchesFocus : false;
         edge.toggleClass("onpath", onPath && revealed);
+        edge.toggleClass("focushl", touchesFocus && !dim);
         edge.toggleClass("dim", dim);
         edge.toggleClass("hidden-kind", kindHidden);
       });
     });
-  }, [pathNodeIds, pathEdgeKeys, replayStep, hoveredId, focusOnHover, matchSet, enabledKinds, neighbors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathNodeIds, pathEdgeKeys, replayStep, hoveredId, focusOnHover, matchSet, enabledKinds, neighbors, pinnedId, focusSet, geomVersion]);
+
+  // ── Sample edge midpoints for the QID chips ───────────────────────────
+  // Declared after the class effect so any edge the path un-hides is already
+  // visible (display:none edges have no computable midpoint) when sampled.
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    const map = chipPosRef.current;
+    map.clear();
+    chipEdges.forEach(({ id }) => {
+      const ele = cy.getElementById(id);
+      if (!ele.length) return;
+      // midpoint() returns undefined for an edge that is display:none (a path
+      // can include an edge whose kind is currently filtered out).
+      const m = (ele as EdgeSingular).midpoint();
+      if (m && Number.isFinite(m.x) && Number.isFinite(m.y)) map.set(id, { x: m.x, y: m.y });
+    });
+    bumpChipTick();
+  }, [chipEdges, geomVersion]);
+
+  // ── Camera: frame the selected path, follow the replay frontier ───────
+  const prevSelectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selected?.path_id ?? null;
+    const dur = reduceMotion ? 0 : 520;
+    cy.stop();
+    if (!selected) {
+      if (prev != null) cy.animate({ fit: { eles: cy.nodes("[kind]"), padding: 60 } }, { duration: dur, easing: "ease-in-out-cubic" });
+      return;
+    }
+    if (replayStep < 0) {
+      const eles = cy.filter((ele) => ele.isNode() && (pathNodeIds?.has(ele.id()) ?? false));
+      if (eles.length) cy.animate({ fit: { eles, padding: 100 } }, { duration: dur, easing: "ease-in-out-cubic" });
+    } else {
+      const frontier = selected.steps[replayStep]?.host;
+      const ele = frontier ? cy.getElementById(frontier) : null;
+      if (ele && ele.length) {
+        cy.animate(
+          { center: { eles: ele }, zoom: Math.max(cy.zoom(), 0.9) },
+          { duration: reduceMotion ? 0 : 420, easing: "ease-in-out-cubic" },
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.path_id, replayStep, geomVersion]);
 
   // ── One-shot reveal animation for newly-visible replay edges ───────────
   const prevRevealCount = useRef(-2);
@@ -668,6 +947,25 @@ export default function AttackGraph({
     }
     prevRevealCount.current = shown;
   }, [replayStep, selected, pathEdgeKeys]);
+
+  // ── Marching-ants flow along the selected path ────────────────────────
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || !selected || reduceMotion) return;
+    let raf = 0;
+    let offset = 0;
+    const tick = () => {
+      offset -= 0.5;
+      if (offset < -960) offset = 0;
+      cy.edges(".onpath").style("line-dash-offset", offset);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      cy.edges().removeStyle("line-dash-offset");
+    };
+  }, [selected, reduceMotion, geomVersion]);
 
   // ── Minimap ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -694,14 +992,57 @@ export default function AttackGraph({
 
   // ── Fullscreen / container resize ───────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => { cyRef.current?.resize(); cyRef.current?.fit(undefined, 48); }, 80);
+    const t = setTimeout(() => {
+      cyRef.current?.resize();
+      cyRef.current?.fit(cyRef.current.nodes("[kind]"), 60);
+      syncOverlay();
+    }, 80);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullscreen]);
 
   return (
     <div ref={containerRef} className={cx("relative flex", fullscreen ? "fixed inset-0 z-[60] bg-base" : "h-full w-full")}>
       <div className="relative min-w-0 flex-1">
         <div ref={cyContainerRef} className="ag-canvas h-full w-full" />
+
+        {/* DOM overlay: crisp node cards + QID chips, glued to the viewport */}
+        <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden" data-chip-tick={chipTick}>
+          <div ref={overlayInnerRef} className="absolute left-0 top-0" style={{ transformOrigin: "0 0" }}>
+            {graph.nodes.map((n) => {
+              const p = posOverrideRef.current.get(n.id) ?? layoutRes.pos.get(n.id);
+              if (!p) return null;
+              return (
+                <NodeCard
+                  key={n.id}
+                  node={n}
+                  x={p.x}
+                  y={p.y}
+                  dim={nodeDimmed(n.id)}
+                  hovered={hoveredId === n.id}
+                  pinned={pinnedId === n.id}
+                  step={selected ? stepIndexOf.get(n.id) ?? null : null}
+                  cardRef={(el) => { if (el) cardRefs.current.set(n.id, el); else cardRefs.current.delete(n.id); }}
+                />
+              );
+            })}
+            {chipEdges.map((c) => {
+              const p = chipPosRef.current.get(c.id);
+              if (!p) return null;
+              return (
+                <EdgeChip
+                  key={c.id}
+                  x={p.x}
+                  y={p.y}
+                  kind={c.kind}
+                  qid={c.qid}
+                  inv={chipInvRef.current}
+                  chipRef={(el) => { if (el) chipRefs.current.set(c.id, el); else chipRefs.current.delete(c.id); }}
+                />
+              );
+            })}
+          </div>
+        </div>
 
         {/* top-left control panel */}
         <div className="pointer-events-auto absolute left-3 top-3 z-10 flex w-[192px] flex-col gap-2 rounded-xl border border-line bg-surface/90 p-2 shadow-card backdrop-blur-md">
@@ -739,19 +1080,19 @@ export default function AttackGraph({
           <div className="h-px bg-line" />
           <div className="flex gap-1">
             <ToggleBtn active={focusOnHover} onClick={() => setFocusOnHover((v) => !v)} icon={<Focus size={13} />} title="Highlight neighbours on hover" />
-            <ToggleBtn active={showLabels} onClick={() => setShowLabels((v) => !v)} icon={<TagIcon size={13} />} title="Edge labels on selected path" />
+            <ToggleBtn active={showLabels} onClick={() => setShowLabels((v) => !v)} icon={<TagIcon size={13} />} title="QID labels on hover & selected path" />
             <ToggleBtn active={showMiniMap} onClick={() => setShowMiniMap((v) => !v)} icon={<Waypoints size={13} />} title="Toggle minimap" />
-            <ToggleBtn active={false} onClick={() => cyRef.current?.fit(undefined, 48)} icon={<Crosshair size={13} />} title="Fit to view" />
+            <ToggleBtn active={false} onClick={() => { cyRef.current?.fit(cyRef.current.nodes("[kind]"), 60); syncOverlay(); }} icon={<Crosshair size={13} />} title="Fit to view" />
             <ToggleBtn active={fullscreen} onClick={() => setFullscreen((v) => !v)} icon={fullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />} title="Fullscreen" />
           </div>
         </div>
 
         {/* top-right legend */}
         <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col gap-1.5 rounded-xl border border-line bg-surface/90 p-2.5 text-[10px] shadow-card backdrop-blur-md">
-          <LegendRow swatch={<span className="grid h-3.5 w-3.5 place-items-center rounded-full border border-purple/70 text-[8px] text-purple">★</span>} label="Crown jewel (star shape)" />
-          <LegendRow swatch={<Crosshair size={12} className="text-immediate" />} label="Dashed ring = internet entry" />
-          <LegendRow swatch={<Zap size={11} className="text-act" />} label="Thicker ring = higher GRS" />
-          <LegendRow swatch={<span className="h-1.5 w-4 rounded" style={{ background: "rgb(var(--c-immediate))" }} />} label="Ring/icon hue = risk band" />
+          <LegendRow swatch={<Gem size={11} className="text-purple" />} label="Crown jewel" />
+          <LegendRow swatch={<Crosshair size={12} className="text-immediate" />} label="Dashed border = internet entry" />
+          <LegendRow swatch={<Zap size={11} className="text-act" />} label="Chip = peak risk score (GRS)" />
+          <LegendRow swatch={<span className="h-1.5 w-4 rounded" style={{ background: "rgb(var(--c-immediate))" }} />} label="Border & icon hue = risk band" />
         </div>
 
         {/* replay / status bar */}
@@ -772,7 +1113,7 @@ export default function AttackGraph({
               ? `${matchSet.size} match${matchSet.size === 1 ? "" : "es"} · clear search to reset`
               : hiddenEdgeCount > 0
                 ? `${hiddenEdgeCount} edge${hiddenEdgeCount === 1 ? "" : "s"} hidden for clarity · toggle in the panel to reveal`
-                : "Full attack surface · hover a node to inspect · select a path to trace it"}
+                : "Full attack surface · hover a node to inspect it and reveal its QIDs · select a path to trace it"}
           </div>
         )}
 
