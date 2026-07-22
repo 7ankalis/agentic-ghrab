@@ -128,9 +128,9 @@ AGENT_ROLES = [
 # hammer one bill/rate-limit. Any of these is overridable from Settings, and the
 # fallback chain below is tried automatically when the preferred key is absent.
 DEFAULT_AGENT_PROVIDER: dict[str, str] = {
-    "correlation": "groq",       # fast, high-volume cross-referencing
+    "correlation": "mistral",       # fast, high-volume cross-referencing
     "attack_path": "mistral",    # large-context reasoning for chain analysis
-    "remediation": "groq",
+    "remediation": "mistral",
     "compliance": "mistral",
     "triage": "mistral",         # executive synthesis + analyst chat
 }
