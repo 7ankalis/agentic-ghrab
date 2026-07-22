@@ -238,19 +238,24 @@ const LAYOUTS: Record<LayoutMode, (g: GraphPayload) => LayoutResult> = {
 // ── DOM overlay pieces ───────────────────────────────────────────────────
 
 function NodeCard({
-  node, x, y, dim, hovered, pinned, step, cardRef,
+  node, x, y, dim, hovered, pinned, step, emphasis, cardRef,
 }: {
   node: GraphNode; x: number; y: number; dim: boolean; hovered: boolean;
-  pinned: boolean; step: number | null; cardRef: (el: HTMLDivElement | null) => void;
+  pinned: boolean; step: number | null; emphasis: boolean;
+  cardRef: (el: HTMLDivElement | null) => void;
 }) {
   const Icon = roleIcon(node.role ?? "", node.label, node.kind);
+  // On-path cards swell so the traced chain reads as the foreground; a hover
+  // adds a touch more. Scaling is centered (transform-origin: center) so the
+  // card stays anchored on its node position.
+  const scale = (emphasis ? 1.22 : 1) * (hovered && !dim ? 1.05 : 1);
 
   if (node.kind === "internet") {
     return (
       <div
         ref={cardRef}
-        className={cx("absolute flex select-none flex-col items-center transition-opacity duration-200", dim ? "opacity-[0.08]" : "opacity-100")}
-        style={{ left: x - 60, top: y - INET_R, width: 120 }}
+        className={cx("absolute flex select-none flex-col items-center transition-[opacity,transform] duration-200", dim ? "opacity-[0.08]" : "opacity-100")}
+        style={{ left: x - 60, top: y - INET_R, width: 120, transform: emphasis ? "scale(1.15)" : undefined, transformOrigin: "center" }}
       >
         <span className="grid place-items-center text-immediate" style={{ height: INET_R * 2 }}>
           <Icon size={26} />
@@ -268,9 +273,9 @@ function NodeCard({
       className={cx(
         "absolute select-none transition-[opacity,transform] duration-200",
         dim ? "opacity-[0.08]" : "opacity-100",
-        hovered && !dim && "scale-[1.04]",
+        emphasis && "z-10",
       )}
-      style={{ left: x - CARD_W / 2, top: y - CARD_H / 2, width: CARD_W, height: CARD_H }}
+      style={{ left: x - CARD_W / 2, top: y - CARD_H / 2, width: CARD_W, height: CARD_H, transform: scale === 1 ? undefined : `scale(${scale})`, transformOrigin: "center" }}
     >
       <div className="flex h-full items-center gap-2 px-2">
         <span
@@ -684,13 +689,33 @@ export default function AttackGraph({
           "border-style": (ele: cytoscape.NodeSingular) => (ele.data("entry") ? "dashed" : "solid"),
           label: "",
           "overlay-opacity": 0,
-          "transition-property": "opacity",
-          "transition-duration": 150,
+          "transition-property": "opacity, width, height, border-width",
+          "transition-duration": 220,
+          "transition-timing-function": "ease-out",
         },
       },
       {
         selector: "node[kind = 'internet']",
         style: { shape: "ellipse", width: INET_R * 2, height: INET_R * 2 },
+      },
+      {
+        // On the selected chain, nodes swell and gain a tinted halo so the
+        // traced path reads as the clear foreground against the dimmed rest.
+        selector: "node.onpath",
+        style: {
+          width: CARD_W * 1.22,
+          height: CARD_H * 1.22,
+          "border-width": (ele: cytoscape.NodeSingular) => (ele.data("grs") > 0 ? 2.5 + (ele.data("grs") / 100) * 2 : 2.5),
+          "underlay-color": accent,
+          "underlay-opacity": 0.2,
+          "underlay-padding": 10,
+          "underlay-shape": "round-rectangle",
+          "z-index": 20,
+        },
+      },
+      {
+        selector: "node[kind = 'internet'].onpath",
+        style: { width: INET_R * 2 * 1.15, height: INET_R * 2 * 1.15, "underlay-shape": "ellipse" },
       },
       {
         selector: "node.lane",
@@ -864,6 +889,7 @@ export default function AttackGraph({
         node.toggleClass("dim", nodeDimmed(id));
         node.toggleClass("match", matchSet?.has(id) ?? false);
         node.toggleClass("pinned", id === pinnedId);
+        node.toggleClass("onpath", Boolean(pathNodeIds?.has(id)) && nodeRevealed(id));
       });
       cy.edges().forEach((edge) => {
         const key = edge.id();
@@ -916,15 +942,35 @@ export default function AttackGraph({
       return;
     }
     if (replayStep < 0) {
+      // Tight padding so the whole chain fills the viewport; the on-path nodes
+      // then grow (via the .onpath size transition) into that frame, making
+      // the selection read as a concentrated close-up rather than a distant
+      // sub-graph. Cap the zoom so a 2-hop path doesn't slam to maxZoom.
       const eles = cy.filter((ele) => ele.isNode() && (pathNodeIds?.has(ele.id()) ?? false));
-      if (eles.length) cy.animate({ fit: { eles, padding: 100 } }, { duration: dur, easing: "ease-in-out-cubic" });
-    } else {
-      const frontier = selected.steps[replayStep]?.host;
-      const ele = frontier ? cy.getElementById(frontier) : null;
-      if (ele && ele.length) {
+      if (eles.length) {
         cy.animate(
-          { center: { eles: ele }, zoom: Math.max(cy.zoom(), 0.9) },
-          { duration: reduceMotion ? 0 : 420, easing: "ease-in-out-cubic" },
+          { fit: { eles, padding: 55 } },
+          {
+            duration: dur,
+            easing: "ease-in-out-cubic",
+            complete: () => { if (cy.zoom() > 1.75) cy.zoom({ level: 1.75, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); syncOverlay(); },
+          },
+        );
+      }
+    } else {
+      // Follow the replay frontier: frame the hop just revealed together with
+      // the node it arrived from, kept at a concentrated zoom.
+      const frontier = selected.steps[replayStep]?.host;
+      const prevHost = replayStep === 0 ? "INTERNET" : selected.steps[replayStep - 1]?.host;
+      const eles = cy.filter((ele) => ele.isNode() && (ele.id() === frontier || ele.id() === prevHost));
+      if (eles.length) {
+        cy.animate(
+          { fit: { eles, padding: 130 } },
+          {
+            duration: reduceMotion ? 0 : 460,
+            easing: "ease-in-out-cubic",
+            complete: () => { if (cy.zoom() > 1.6) cy.zoom({ level: 1.6, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); syncOverlay(); },
+          },
         );
       }
     }
@@ -1022,6 +1068,7 @@ export default function AttackGraph({
                   hovered={hoveredId === n.id}
                   pinned={pinnedId === n.id}
                   step={selected ? stepIndexOf.get(n.id) ?? null : null}
+                  emphasis={Boolean(pathNodeIds?.has(n.id)) && nodeRevealed(n.id)}
                   cardRef={(el) => { if (el) cardRefs.current.set(n.id, el); else cardRefs.current.delete(n.id); }}
                 />
               );
