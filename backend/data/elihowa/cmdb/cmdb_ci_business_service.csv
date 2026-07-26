@@ -1,0 +1,4 @@
+ci_id,name,description
+BSVC-EL-01,E-Commerce Platform,"Public storefront, order API, product catalog"
+BSVC-EL-02,Payment Processing (PCI CDE),"Card-present/card-not-present transaction switch, cardholder data store, key management"
+BSVC-EL-03,Corporate IT & Support,"Internal identity, file shares, endpoints, backup infrastructure"

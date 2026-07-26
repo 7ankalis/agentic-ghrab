@@ -1,0 +1,16 @@
+rule_id,src_zone,dst_zone,port,status,enabling_qid,notes
+RULE-GH-001,NET-GH-INET,NET-GH-0020,"443, 80, 25",Intended,,"Public web, VPN, mail relay"
+RULE-GH-002,NET-GH-0020,NET-GH-0021,tcp/8443 (LB backend only),Intended,,As-designed rule; superseded in practice by RULE-GH-003
+RULE-GH-003,NET-GH-0020,NET-GH-0021,ANY/ANY,Excessive,200114,As-configured firewall rule; QID 200114 — should be scoped to RULE-GH-002 only
+RULE-GH-004,NET-GH-0021,NET-GH-0030,"tcp/1433, 1521",Intended,,"App tier to DB tier, standard app connectivity"
+RULE-GH-005,NET-GH-0010,NET-GH-0040,ANY (Kerberos/LDAP/SMB),Excessive,200512,Flat trust; QID 200512 — no tiering/PAM boundary enforced
+RULE-GH-006,NET-GH-0010,NET-GH-0050,N/A,Should-Not-Exist,,Management plane must only be reached via designated jump path
+RULE-GH-007,NET-GH-0020,NET-GH-0050,ANY (VPN split-tunnel),Excessive,200401,QID 200401 — VPN client policy routes into management VLAN
+RULE-GH-008,NET-GH-0070,NET-GH-0010,802.1Q (all VLANs),Excessive,105001,"QID 105001 — guest trunk misconfigured, should be access-mode only"
+RULE-GH-009,NET-GH-0060,NET-GH-0010,"udp/500,4500 tcp/443",Intended,,"Site-to-site VPN, branch to AD authentication only"
+RULE-GH-010,NET-GH-0050,NET-GH-0080,"tcp/9392, 445",Intended,,Backup jobs
+RULE-GH-011,NET-GH-0010,NET-GH-0030,N/A,Should-Not-Exist,,Workstations must never reach DB tier directly
+RULE-GH-012,NET-GH-0021,NET-GH-0040,N/A,Should-Not-Exist,,App tier and Finance/Trading zone are separate trust tiers
+RULE-GH-013,NET-GH-INET,NET-GH-0090,tcp/443,Excessive,300011,QID 300011 — bucket policy grants public read
+RULE-GH-014,NET-GH-INET,NET-GH-0090,tcp/5432,Excessive,300067,QID 300067 — RDS publicly accessible flag enabled
+RULE-GH-015,NET-GH-0070,NET-GH-0040,N/A,Should-Not-Exist,,No path exists or has ever existed from Guest WiFi directly to the Finance zone

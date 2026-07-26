@@ -1,0 +1,6 @@
+ci_id,name,description
+BSVC-VL-01,Patient Care — EHR & Records,"Patient portal, EHR, imaging archive, and related patient data"
+BSVC-VL-02,Telehealth Services,Video-visit platform and supporting infrastructure
+BSVC-VL-03,Insurance Claims & Billing,"Claims processing, billing application and database"
+BSVC-VL-04,Corporate IT & Collaboration,"Internal identity, email, file shares, endpoints, infrastructure management"
+BSVC-VL-05,Clinical/Biomedical Devices,"Infusion pumps, imaging modalities, pharmacy dispensing — life-safety-critical systems"

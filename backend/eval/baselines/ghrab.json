@@ -1,0 +1,223 @@
+{
+  "dataset": "ghrab",
+  "ai_enabled": false,
+  "ai_error": null,
+  "capability_provenance": {
+    "regex": 32,
+    "llm": 0,
+    "both": 0
+  },
+  "counts": {
+    "detected_paths": 13,
+    "oracle_paths": 6,
+    "assets": 30,
+    "findings": 32,
+    "graph_edges": 163
+  },
+  "target_level": {
+    "tp": 4,
+    "precision": 0.5,
+    "recall": 0.6667,
+    "f1": 0.5714,
+    "oracle_targets": [
+      "BACKUP-MGR01",
+      "DB-CRM01",
+      "DB-TRADE01",
+      "FILESRV01",
+      "SWIFT-GATEWAY01",
+      "ghrab-finance-rds"
+    ],
+    "detected_targets": [
+      "APP-TRADE01",
+      "BACKUP-MGR01",
+      "DB-TRADE01",
+      "DC01",
+      "SETTLEMENT01",
+      "SWIFT-GATEWAY01",
+      "TRADE-CORE01",
+      "ghrab-finance-rds"
+    ],
+    "reached_targets": [
+      "BACKUP-MGR01",
+      "DB-TRADE01",
+      "SWIFT-GATEWAY01",
+      "ghrab-finance-rds"
+    ],
+    "missed_targets": [
+      "DB-CRM01",
+      "FILESRV01"
+    ]
+  },
+  "edge_level": {
+    "qid_jaccard_mean": 0.4183,
+    "host_jaccard_mean": 0.3778,
+    "recall": 0.4944,
+    "precision": 0.5782,
+    "f1": 0.533,
+    "per_path": {
+      "FILESRV01": {
+        "qid_jaccard": 0.2,
+        "host_jaccard": 0.25,
+        "qid_recall": 0.25,
+        "recovered_qids": [
+          105001
+        ],
+        "oracle_qids": [
+          38689,
+          90013,
+          105001,
+          150220
+        ]
+      },
+      "DB-CRM01": {
+        "qid_jaccard": 0.6667,
+        "host_jaccard": 0.4,
+        "qid_recall": 0.8,
+        "recovered_qids": [
+          11827,
+          11831,
+          13398,
+          200114
+        ],
+        "oracle_qids": [
+          11827,
+          11831,
+          13398,
+          200114,
+          200338
+        ]
+      },
+      "ghrab-finance-rds": {
+        "qid_jaccard": 0.6667,
+        "host_jaccard": 0.6667,
+        "qid_recall": 0.6667,
+        "recovered_qids": [
+          300011,
+          300067
+        ],
+        "oracle_qids": [
+          300011,
+          300045,
+          300067
+        ]
+      },
+      "BACKUP-MGR01": {
+        "qid_jaccard": 0.3333,
+        "host_jaccard": 0.2,
+        "qid_recall": 0.4,
+        "recovered_qids": [
+          200401,
+          200455
+        ],
+        "oracle_qids": [
+          43111,
+          43287,
+          90211,
+          200401,
+          200455
+        ]
+      },
+      "SWIFT-GATEWAY01": {
+        "qid_jaccard": 0.5,
+        "host_jaccard": 0.5,
+        "qid_recall": 0.6,
+        "recovered_qids": [
+          90512,
+          200512,
+          200533
+        ],
+        "oracle_qids": [
+          45923,
+          90344,
+          90512,
+          200512,
+          200533
+        ]
+      },
+      "DB-TRADE01": {
+        "qid_jaccard": 0.1429,
+        "host_jaccard": 0.25,
+        "qid_recall": 0.25,
+        "recovered_qids": [
+          200622
+        ],
+        "oracle_qids": [
+          150221,
+          150233,
+          200601,
+          200622
+        ]
+      }
+    }
+  },
+  "soundness": 1.0,
+  "soundness_hops": {
+    "verified": 31,
+    "total": 31
+  },
+  "soundness_by_origin": {
+    "deterministic": {
+      "rate": 1.0,
+      "verified": 31,
+      "total": 31
+    }
+  },
+  "soundness_grounded": 1.0,
+  "soundness_grounded_hops": {
+    "verified": 31,
+    "total": 31
+  },
+  "ranking": {
+    "average_precision": 0.5821,
+    "mrr": 1.0,
+    "precision_at_n": 0.3333,
+    "n_documented_detected": 4,
+    "ranked_targets": [
+      {
+        "target": "SWIFT-GATEWAY01",
+        "score": 1.0,
+        "documented": true
+      },
+      {
+        "target": "SETTLEMENT01",
+        "score": 0.798,
+        "documented": false
+      },
+      {
+        "target": "TRADE-CORE01",
+        "score": 0.7962,
+        "documented": false
+      },
+      {
+        "target": "DC01",
+        "score": 0.7756,
+        "documented": false
+      },
+      {
+        "target": "DB-TRADE01",
+        "score": 0.7563,
+        "documented": true
+      },
+      {
+        "target": "APP-TRADE01",
+        "score": 0.689,
+        "documented": false
+      },
+      {
+        "target": "BACKUP-MGR01",
+        "score": 0.6279,
+        "documented": true
+      },
+      {
+        "target": "ghrab-finance-rds",
+        "score": 0.6162,
+        "documented": true
+      }
+    ]
+  },
+  "hallucination_rate": 0.0,
+  "hallucination_refs": {
+    "bad": 0,
+    "total": 75
+  }
+}

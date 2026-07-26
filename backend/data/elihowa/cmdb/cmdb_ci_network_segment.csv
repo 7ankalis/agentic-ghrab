@@ -1,0 +1,5 @@
+ci_id,name,vlan,cidr,trust_level,owner_group,business_purpose
+NET-EL-0010,VLAN 10 — Corporate LAN,10,10.40.10.0/24,Medium,GRP-EL-IT,
+NET-EL-0020,VLAN 20 — DMZ / E-Commerce,20,10.40.20.0/24,Low (internet-facing),GRP-EL-NET,
+NET-EL-0030,VLAN 30 — Payment Processing Zone (PCI CDE),30,10.40.30.0/24,Critical (isolated),GRP-EL-PAY,
+NET-EL-INET,Internet (untrusted),INET,0.0.0.0/0,None,N/A,

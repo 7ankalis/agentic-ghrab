@@ -1,7 +1,7 @@
 """Shared analyst persona and helpers for all agents."""
 from __future__ import annotations
 
-from core.config import active_org
+from core.config import active_org, agent_temperature
 from core.providers import call_llm, call_llm_json
 
 
@@ -31,7 +31,8 @@ def ask(role: str, task_prompt: str, context: str, session_state=None,
     system = analyst_persona()
     user = f"CONTEXT:\n{context}\n\nTASK:\n{task_prompt}"
     result = call_llm(role, system, user, session_state=session_state,
-                      max_tokens=max_tokens, detail=detail)
+                      max_tokens=max_tokens, detail=detail,
+                      temperature=agent_temperature(role))
     return result.text.strip()
 
 
@@ -43,4 +44,5 @@ def ask_json(role: str, task_prompt: str, context: str, session_state=None,
     )
     user = f"CONTEXT:\n{context}\n\nTASK:\n{task_prompt}"
     return call_llm_json(role, system, user, session_state=session_state,
-                         max_tokens=max_tokens, detail=detail)
+                         max_tokens=max_tokens, detail=detail,
+                         temperature=agent_temperature(role))

@@ -1,0 +1,2 @@
+ci_id,name,provider,type,criticality,support_group,business_service
+CLD-EL-5001,elihowa-product-images,Azure,Object Storage,Business-Important,GRP-EL-CLD,BSVC-EL-01

@@ -20,13 +20,16 @@ from dataclasses import dataclass
 from core import call_log
 from core.config import (
     AGENT_ROLES,
+    DEFAULT_AGENT_MODEL,
     DEFAULT_AGENT_PROVIDER,
     FALLBACK_ORDER,
     LLM_BACKOFF_BASE_SEC,
     LLM_BACKOFF_MAX_SEC,
     LLM_MAX_RETRIES,
+    LLM_REQUEST_TIMEOUT_SEC,
     PROVIDERS,
     get_api_key,
+    model_min_interval,
     provider_min_interval,
 )
 
@@ -56,19 +59,22 @@ def _provider_lock(provider_key: str) -> threading.Lock:
         return lock
 
 
-def _throttle(provider_key: str) -> None:
-    """Block until at least `provider_min_interval` seconds have elapsed since the
-    last request to this provider."""
-    interval = provider_min_interval(provider_key)
+def _throttle(provider_key: str, model_id: str) -> None:
+    """Block until at least `model_min_interval` seconds have elapsed since the
+    last request to this SAME (provider, model). Keyed per model because free-tier
+    RPS caps are per model — a fast model must not be paced to a slow one's rate,
+    nor a slow one under-throttled into 429s."""
+    interval = model_min_interval(provider_key, model_id)
     if interval <= 0:
         return
-    with _provider_lock(provider_key):
+    throttle_key = f"{provider_key}:{model_id}"
+    with _provider_lock(throttle_key):
         now = time.monotonic()
-        wait = interval - (now - _provider_last_call.get(provider_key, 0.0))
+        wait = interval - (now - _provider_last_call.get(throttle_key, 0.0))
         if wait > 0:
-            logger.info("Throttling %s: waiting %.1fs before next request", provider_key, wait)
+            logger.info("Throttling %s: waiting %.1fs before next request", throttle_key, wait)
             time.sleep(wait)
-        _provider_last_call[provider_key] = time.monotonic()
+        _provider_last_call[throttle_key] = time.monotonic()
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -77,6 +83,14 @@ def _is_rate_limit(exc: Exception) -> bool:
         return True
     name = exc.__class__.__name__.lower()
     return "ratelimit" in name or "429" in str(exc) or "rate limit" in str(exc).lower()
+
+
+def _is_timeout(exc: Exception) -> bool:
+    """A request timeout (litellm.Timeout / httpx / socket) — retry the same
+    provider before falling through, like a 429: a transient stall, not a hard
+    failure of the model or key."""
+    name = exc.__class__.__name__.lower()
+    return "timeout" in name or "timed out" in str(exc).lower()
 
 
 def _retry_after_seconds(exc: Exception, attempt: int) -> float:
@@ -141,7 +155,11 @@ def call_llm(
             continue
         spec = PROVIDERS[provider_key]
         model_override = (session_state.get(f"agent_model_{role}") if session_state else None)
-        model_id = model_override or spec.default_model
+        # The curated per-role model applies only on the role's preferred provider
+        # (its id is provider-specific); a fallback provider uses its own default.
+        role_default = (DEFAULT_AGENT_MODEL.get(role)
+                        if provider_key == DEFAULT_AGENT_PROVIDER.get(role) else None)
+        model_id = model_override or role_default or spec.default_model
         litellm_model = f"{spec.litellm_prefix}/{model_id}" if spec.litellm_prefix else model_id
 
         kwargs = dict(
@@ -154,6 +172,9 @@ def call_llm(
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        # Bound how long a single attempt may hang; 0 leaves it to the client default.
+        if LLM_REQUEST_TIMEOUT_SEC > 0:
+            kwargs["timeout"] = LLM_REQUEST_TIMEOUT_SEC
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
 
@@ -162,7 +183,7 @@ def call_llm(
         # straight through the chain just spreads the 429s around.
         for attempt in range(LLM_MAX_RETRIES + 1):
             overall_attempt += 1
-            _throttle(provider_key)
+            _throttle(provider_key, model_id)
             call_id = call_log.start(role, provider_key, model_id, detail,
                                       attempt=overall_attempt, group_id=group_id)
             t0 = time.monotonic()
@@ -182,15 +203,16 @@ def call_llm(
                                 (time.monotonic() - t0) * 1000, error=str(exc)[:800], detail=detail,
                                 attempt=overall_attempt, group_id=group_id)
                 last_err = exc
-                if _is_rate_limit(exc) and attempt < LLM_MAX_RETRIES:
+                if (_is_rate_limit(exc) or _is_timeout(exc)) and attempt < LLM_MAX_RETRIES:
+                    reason = "rate-limited" if _is_rate_limit(exc) else "timed out"
                     delay = _retry_after_seconds(exc, attempt)
-                    logger.warning("Provider %s rate-limited for role %s (attempt %d/%d); "
-                                   "backing off %.1fs", provider_key, role, attempt + 1,
+                    logger.warning("Provider %s %s for role %s (attempt %d/%d); "
+                                   "backing off %.1fs", provider_key, reason, role, attempt + 1,
                                    LLM_MAX_RETRIES, delay)
                     time.sleep(delay)
                     continue
                 logger.warning("Provider %s failed for role %s: %s", provider_key, role, exc)
-                break  # non-rate-limit error, or retries exhausted → next provider
+                break  # non-retryable error, or retries exhausted → next provider
 
     raise ProviderUnavailable(
         f"No configured provider could serve role '{role}'. "
@@ -220,9 +242,10 @@ def _extract_cost(resp) -> float | None:
 
 
 def call_llm_json(role: str, system_prompt: str, user_prompt: str, session_state=None,
-                   max_tokens: int = 2000, detail: str = "") -> dict:
+                   max_tokens: int = 2000, detail: str = "", temperature: float = 0.2) -> dict:
     result = call_llm(role, system_prompt, user_prompt, session_state,
-                       json_mode=True, max_tokens=max_tokens, detail=detail)
+                       json_mode=True, max_tokens=max_tokens, temperature=temperature,
+                       detail=detail)
     text = result.text.strip()
     # some providers wrap JSON in ```json fences despite response_format
     if text.startswith("```"):

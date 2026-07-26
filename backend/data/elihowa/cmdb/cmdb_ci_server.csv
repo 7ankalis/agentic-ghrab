@@ -1,0 +1,11 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+SRV-EL-1001,DC01,NET-EL-0010,10.40.10.10,Windows Server (AD DS),High,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1002,FILESRV01,NET-EL-0010,10.40.10.20,Windows Server,Business-Important,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1003,WKS-ACCT01,NET-EL-0010,10.40.10.40,Windows 10/11,Standard,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1004,WKS-SUPPORT01,NET-EL-0010,10.40.10.45,Windows 10/11,Standard,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1005,BACKUP-MGR01,NET-EL-0010,10.40.10.50,Windows Server (Veeam),High,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1006,PRINT01,NET-EL-0010,10.40.10.60,Network Print Appliance,Standard,GRP-EL-IT,BSVC-EL-03
+SRV-EL-1011,WEB-SHOP01,NET-EL-0020,10.40.20.10,Linux (Adobe Commerce/Magento),Business-Important,GRP-EL-NET,BSVC-EL-01
+SRV-EL-1012,API-GW01,NET-EL-0020,10.40.20.20,Linux (Node.js),Business-Important,GRP-EL-APP,BSVC-EL-01
+SRV-EL-1032,HSM-GW01,NET-EL-0030,10.40.30.30,HSM Appliance (Thales),Crown Jewel,GRP-EL-PAY,BSVC-EL-02
+SRV-EL-1033,PAY-ADMIN01,NET-EL-0030,10.40.30.40,"Linux (hardened admin bastion, not domain-joined)",High,GRP-EL-PAY,BSVC-EL-02

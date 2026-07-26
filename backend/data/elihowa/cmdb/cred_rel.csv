@@ -1,0 +1,4 @@
+rel_id,identity_ci,valid_on,access_level,enabling_qid,issue
+CRED-EL-01,ID-EL-6003,SRV-EL-1002;SRV-EL-1003;SRV-EL-1004,Local Administrator,,Enables pass-the-hash lateral movement across corporate endpoints
+CRED-EL-02,ID-EL-6002,SRV-EL-1005;SRV-EL-1033,Local Administrator on both hosts,,"Weak, reused password; the only credential that is simultaneously valid on a Corporate LAN host and a PCI CDE host"
+CRED-EL-03,ID-EL-6004,SRV-EL-1001,Full domain administrative control,,Correctly scoped — does not extend into NET-EL-0030; VLAN 30 hosts are not domain members

@@ -1,0 +1,5 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+SRV-VL-1010,LB01,NET-VL-0020,10.20.20.5,F5/NGINX Appliance,Business-Important,GRP-VL-NET,BSVC-VL-01
+SRV-VL-1012,CLINIC-VPN-GW01,NET-VL-0020,10.20.20.20,FortiGate Appliance,Business-Important,GRP-VL-NET,BSVC-VL-04
+SRV-VL-1060,CLINIC-RTR01,NET-VL-0060,10.20.60.1,Router Appliance,Standard,GRP-VL-NET,BSVC-VL-04
+SRV-VL-1070,GUEST-AP-SW01,NET-VL-0070,10.20.70.1,Access Switch,Standard,GRP-VL-NET,BSVC-VL-04

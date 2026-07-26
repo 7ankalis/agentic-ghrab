@@ -19,13 +19,14 @@ from dataclasses import dataclass, field
 import networkx as nx
 import pandas as pd
 
+from core import call_log
 from agents.analyst_agent import detect_attack_paths
 from agents.compliance_agent import compliance_summary
 from agents.correlation_agent import find_toxic_combinations
 from agents.discovery_agent import analyze as analyze_paths
 from agents.triage_agent import executive_synthesis
 from core.attack_graph import DiscoveredPath, HostNode, discover_paths
-from core.capability import Capability, classify_all
+from core.capability import Capability, classify_all, classify_all_hybrid
 from core.cmdb import CMDB, get_cmdb
 from core.graph import Chain, build_chains
 from core.ingestion import get_vulnerabilities
@@ -55,6 +56,7 @@ class AnalysisResult:
     executive_summary: str = ""
     generated_at: float = 0.0
     remediations: dict = field(default_factory=dict)  # qid -> enrich_remediation() result, cached for the session
+    run_trace: dict = field(default_factory=dict)     # Phase 5 observability: real token/cost accounting + detection diag for the run
 
 
 def compute_deterministic(progress_cb=None) -> AnalysisResult:
@@ -100,11 +102,35 @@ def run_ai_layer(result: AnalysisResult, session_state=None, progress_cb=None,
             raise RunCancelled
 
     df, cmdb, paths = result.df, result.cmdb, result.paths
+    acct_marker = call_log.marker()   # Phase 5: account only calls from THIS run
+
+    checkpoint()
+    report("Capability Extractor: re-reading each finding with the LLM to catch "
+           "capabilities the regex classifier misses…")
+    try:
+        hybrid = classify_all_hybrid(df, cmdb, session_state)
+        upgraded = [c for c in hybrid.values() if c.source != "regex"]
+        if upgraded:
+            # Enriched capabilities can open reachability edges the regex pass
+            # missed, so rebuild the graph + re-discover paths before any agent
+            # reasons over them. Regex classification still stands if the LLM
+            # added nothing (or no provider answered).
+            result.caps = hybrid
+            paths, result.graph, result.nodes = discover_paths(df, cmdb, hybrid)
+            result.paths = paths
+            report(f"Capability Extractor: {len(upgraded)} finding(s) enriched "
+                   f"beyond regex; graph rebuilt "
+                   f"({result.graph.number_of_edges()} edges, {len(paths)} paths).")
+    except Exception as exc:  # noqa: BLE001 — regex classification + paths still stand
+        report(f"Capability Extractor — provider error, regex classification "
+               f"stands: {exc}", "warn")
 
     checkpoint()
     report("Analyst Detection Agent: reasoning attack paths from asset+ownership+"
            "reachability grounding (no candidate list, no answer key)…")
-    result.detected = detect_attack_paths(df, cmdb, result.caps, result.nodes, session_state)
+    result.detected = detect_attack_paths(df, cmdb, result.caps, result.nodes,
+                                          result.graph, session_state,
+                                          should_cancel=should_cancel)
     if result.detected.get("error"):
         report(f"Analyst Detection Agent — provider error: {result.detected['error']}", "warn")
 
@@ -142,5 +168,22 @@ def run_ai_layer(result: AnalysisResult, session_state=None, progress_cb=None,
     result.discovery["ai_detected"] = result.detected.get("detected_paths", [])
     if result.detected.get("error"):
         result.discovery["ai_detected_error"] = result.detected["error"]
+
+    # Phase 5 observability: a per-run trace object — REAL token/cost/latency
+    # accounting (from call_log, not the loop's estimate) plus the detection agent's
+    # reasoning trace + tier counts — persisted alongside the analysis. Folded into
+    # the discovery blob (same additive round-trip as ai_detected); split back onto
+    # result.run_trace in api/state._attach_ai. Best-effort: never fail a run over it.
+    try:
+        result.run_trace = {
+            "generated_at": time.time(),
+            "accounting": call_log.summarize_since(acct_marker),
+            "detection": {k: result.detected.get(k) for k in
+                          ("stopped_reason", "iterations", "tokens_est",
+                           "tier_counts", "rejected", "reasoning_trace")},
+        }
+        result.discovery["run_trace"] = result.run_trace
+    except Exception as exc:  # noqa: BLE001 — observability must never break a run
+        report(f"Run accounting unavailable: {exc}", "warn")
 
     report("Analysis complete.")

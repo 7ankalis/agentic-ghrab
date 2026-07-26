@@ -1,0 +1,13 @@
+ci_id,name,vlan,cidr,trust_level,owner_group,business_purpose
+NET-AB-INET,Internet (untrusted),INET,0.0.0.0/0,None,N/A,Public internet
+NET-AB-0010,VLAN 10 — Corporate LAN,10,10.20.10.0/24,Medium,GRP-AB-IT,Employee workstations and core IT services
+NET-AB-0020,VLAN 20 — DMZ,20,10.20.20.0/24,Low (internet-facing),GRP-AB-NET,"Public-facing web, VPN, and mail relay"
+NET-AB-0021,VLAN 21 — App Tier,21,10.20.21.0/24,Medium,GRP-AB-APP,Internal application servers
+NET-AB-0030,VLAN 30 — DB Tier,30,10.20.30.0/24,High,GRP-AB-DBA,Production databases
+NET-AB-0040,VLAN 40 — Payments/CDE (PCI + SWIFT),40,10.20.40.0/24,Critical,GRP-AB-GRC,Cardholder data environment and payment processing
+NET-AB-0050,VLAN 50 — Management/OOB,50,10.20.50.0/24,Critical (should be),GRP-AB-IT,"Out-of-band management, hypervisor, backup control"
+NET-AB-0060,VLAN 60 — Branch/VPN,60,10.20.60.0/24,Medium,GRP-AB-NET,Branch offices and remote-access VPN
+NET-AB-0070,VLAN 70 — Guest WiFi,70,10.20.70.0/24,Untrusted,GRP-AB-NET,Guest wireless network
+NET-AB-0080,VLAN 80 — Backup/Storage,80,10.20.80.0/24,High,GRP-AB-IT,Backup targets and NAS
+NET-AB-0090,VLAN 90 — DR Site,90,10.30.90.0/24,High,GRP-AB-IT,Disaster-recovery mirror of production
+NET-AB-00C0,Cloud — AWS VPC (acmebank-cloud),Cloud,N/A,Mixed,GRP-AB-CLD,AWS-hosted services

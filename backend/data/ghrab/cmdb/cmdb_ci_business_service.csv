@@ -1,0 +1,6 @@
+ci_id,name,description
+BSVC-GH-01,Retail Banking & Lending,"Customer-facing banking site, CRM, and related customer data"
+BSVC-GH-02,Securities Trading & Settlement,"Core trading platform, trade database, settlement processing"
+BSVC-GH-03,SWIFT Payment Messaging,Interbank payment messaging gateway
+BSVC-GH-04,Corporate IT & Collaboration,"Internal identity, email, file shares, endpoints, infrastructure management"
+BSVC-GH-05,Cloud Data & Analytics,"AWS-hosted storage, identity, and managed database services"

@@ -1,0 +1,2 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+SRV-EL-1031,DB-PAY01,NET-EL-0030,10.40.30.20,Oracle,Crown Jewel,GRP-EL-PAY,BSVC-EL-02

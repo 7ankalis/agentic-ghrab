@@ -1,0 +1,227 @@
+{
+  "dataset": "acmebank",
+  "ai_enabled": false,
+  "ai_error": null,
+  "capability_provenance": {
+    "regex": 27,
+    "llm": 0,
+    "both": 0
+  },
+  "counts": {
+    "detected_paths": 13,
+    "oracle_paths": 7,
+    "assets": 34,
+    "findings": 27,
+    "graph_edges": 225
+  },
+  "target_level": {
+    "tp": 6,
+    "precision": 0.75,
+    "recall": 0.8571,
+    "f1": 0.8,
+    "oracle_targets": [
+      "DB-EBANK01",
+      "DB-PAY01",
+      "DC01",
+      "PAY-CORE01",
+      "SETTLEMENT01",
+      "SWIFT-GW01",
+      "acmebank-finance-rds"
+    ],
+    "detected_targets": [
+      "APP-PAY01",
+      "CORE-SW01",
+      "DB-PAY01",
+      "DC01",
+      "PAY-CORE01",
+      "SETTLEMENT01",
+      "SWIFT-GW01",
+      "acmebank-finance-rds"
+    ],
+    "reached_targets": [
+      "DB-PAY01",
+      "DC01",
+      "PAY-CORE01",
+      "SETTLEMENT01",
+      "SWIFT-GW01",
+      "acmebank-finance-rds"
+    ],
+    "missed_targets": [
+      "DB-EBANK01"
+    ]
+  },
+  "edge_level": {
+    "qid_jaccard_mean": 0.481,
+    "host_jaccard_mean": 0.381,
+    "recall": 0.6905,
+    "precision": 0.6026,
+    "f1": 0.6436,
+    "per_path": {
+      "acmebank-finance-rds": {
+        "qid_jaccard": 0.6667,
+        "host_jaccard": 0.6667,
+        "qid_recall": 0.6667,
+        "recovered_qids": [
+          300011,
+          300067
+        ],
+        "oracle_qids": [
+          300011,
+          300045,
+          300067
+        ]
+      },
+      "DB-EBANK01": {
+        "qid_jaccard": 0.5,
+        "host_jaccard": 0.25,
+        "qid_recall": 0.6667,
+        "recovered_qids": [
+          38701,
+          200114
+        ],
+        "oracle_qids": [
+          38701,
+          200114,
+          200338
+        ]
+      },
+      "DB-PAY01": {
+        "qid_jaccard": 0.25,
+        "host_jaccard": 0.25,
+        "qid_recall": 0.5,
+        "recovered_qids": [
+          200622
+        ],
+        "oracle_qids": [
+          150233,
+          200622
+        ]
+      },
+      "DC01": {
+        "qid_jaccard": 0.5,
+        "host_jaccard": 0.5,
+        "qid_recall": 0.5,
+        "recovered_qids": [
+          91001,
+          105001
+        ],
+        "oracle_qids": [
+          38689,
+          90013,
+          91001,
+          105001
+        ]
+      },
+      "PAY-CORE01": {
+        "qid_jaccard": 0.75,
+        "host_jaccard": 0.5,
+        "qid_recall": 1.0,
+        "recovered_qids": [
+          90211,
+          150101,
+          200401
+        ],
+        "oracle_qids": [
+          90211,
+          150101,
+          200401
+        ]
+      },
+      "SWIFT-GW01": {
+        "qid_jaccard": 0.2,
+        "host_jaccard": 0.25,
+        "qid_recall": 0.5,
+        "recovered_qids": [
+          200533
+        ],
+        "oracle_qids": [
+          90344,
+          200533
+        ]
+      },
+      "SETTLEMENT01": {
+        "qid_jaccard": 0.5,
+        "host_jaccard": 0.25,
+        "qid_recall": 1.0,
+        "recovered_qids": [
+          150100,
+          200512
+        ],
+        "oracle_qids": [
+          150100,
+          200512
+        ]
+      }
+    }
+  },
+  "soundness": 1.0,
+  "soundness_hops": {
+    "verified": 33,
+    "total": 33
+  },
+  "soundness_by_origin": {
+    "deterministic": {
+      "rate": 1.0,
+      "verified": 33,
+      "total": 33
+    }
+  },
+  "soundness_grounded": 1.0,
+  "soundness_grounded_hops": {
+    "verified": 33,
+    "total": 33
+  },
+  "ranking": {
+    "average_precision": 0.8135,
+    "mrr": 1.0,
+    "precision_at_n": 0.7143,
+    "n_documented_detected": 6,
+    "ranked_targets": [
+      {
+        "target": "SETTLEMENT01",
+        "score": 1.0,
+        "documented": true
+      },
+      {
+        "target": "SWIFT-GW01",
+        "score": 1.0,
+        "documented": true
+      },
+      {
+        "target": "CORE-SW01",
+        "score": 1.0,
+        "documented": false
+      },
+      {
+        "target": "DC01",
+        "score": 0.7115,
+        "documented": true
+      },
+      {
+        "target": "APP-PAY01",
+        "score": 0.6506,
+        "documented": false
+      },
+      {
+        "target": "acmebank-finance-rds",
+        "score": 0.5558,
+        "documented": true
+      },
+      {
+        "target": "PAY-CORE01",
+        "score": 0.4583,
+        "documented": true
+      },
+      {
+        "target": "DB-PAY01",
+        "score": 0.4006,
+        "documented": true
+      }
+    ]
+  },
+  "hallucination_rate": 0.0,
+  "hallucination_refs": {
+    "bad": 0,
+    "total": 73
+  }
+}

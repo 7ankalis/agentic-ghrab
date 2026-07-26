@@ -1,0 +1,692 @@
+{
+  "acmebank": {
+    "dataset": "acmebank",
+    "ai_enabled": false,
+    "ai_error": null,
+    "capability_provenance": {
+      "regex": 27,
+      "llm": 0,
+      "both": 0
+    },
+    "counts": {
+      "detected_paths": 13,
+      "oracle_paths": 7,
+      "assets": 34,
+      "findings": 27,
+      "graph_edges": 225
+    },
+    "target_level": {
+      "tp": 6,
+      "precision": 0.75,
+      "recall": 0.8571,
+      "f1": 0.8,
+      "oracle_targets": [
+        "DB-EBANK01",
+        "DB-PAY01",
+        "DC01",
+        "PAY-CORE01",
+        "SETTLEMENT01",
+        "SWIFT-GW01",
+        "acmebank-finance-rds"
+      ],
+      "detected_targets": [
+        "APP-PAY01",
+        "CORE-SW01",
+        "DB-PAY01",
+        "DC01",
+        "PAY-CORE01",
+        "SETTLEMENT01",
+        "SWIFT-GW01",
+        "acmebank-finance-rds"
+      ],
+      "reached_targets": [
+        "DB-PAY01",
+        "DC01",
+        "PAY-CORE01",
+        "SETTLEMENT01",
+        "SWIFT-GW01",
+        "acmebank-finance-rds"
+      ],
+      "missed_targets": [
+        "DB-EBANK01"
+      ]
+    },
+    "edge_level": {
+      "qid_jaccard_mean": 0.481,
+      "host_jaccard_mean": 0.381,
+      "recall": 0.6905,
+      "precision": 0.6026,
+      "f1": 0.6436,
+      "per_path": {
+        "acmebank-finance-rds": {
+          "qid_jaccard": 0.6667,
+          "host_jaccard": 0.6667,
+          "qid_recall": 0.6667,
+          "recovered_qids": [
+            300011,
+            300067
+          ],
+          "oracle_qids": [
+            300011,
+            300045,
+            300067
+          ]
+        },
+        "DB-EBANK01": {
+          "qid_jaccard": 0.5,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.6667,
+          "recovered_qids": [
+            38701,
+            200114
+          ],
+          "oracle_qids": [
+            38701,
+            200114,
+            200338
+          ]
+        },
+        "DB-PAY01": {
+          "qid_jaccard": 0.25,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.5,
+          "recovered_qids": [
+            200622
+          ],
+          "oracle_qids": [
+            150233,
+            200622
+          ]
+        },
+        "DC01": {
+          "qid_jaccard": 0.5,
+          "host_jaccard": 0.5,
+          "qid_recall": 0.5,
+          "recovered_qids": [
+            91001,
+            105001
+          ],
+          "oracle_qids": [
+            38689,
+            90013,
+            91001,
+            105001
+          ]
+        },
+        "PAY-CORE01": {
+          "qid_jaccard": 0.75,
+          "host_jaccard": 0.5,
+          "qid_recall": 1.0,
+          "recovered_qids": [
+            90211,
+            150101,
+            200401
+          ],
+          "oracle_qids": [
+            90211,
+            150101,
+            200401
+          ]
+        },
+        "SWIFT-GW01": {
+          "qid_jaccard": 0.2,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.5,
+          "recovered_qids": [
+            200533
+          ],
+          "oracle_qids": [
+            90344,
+            200533
+          ]
+        },
+        "SETTLEMENT01": {
+          "qid_jaccard": 0.5,
+          "host_jaccard": 0.25,
+          "qid_recall": 1.0,
+          "recovered_qids": [
+            150100,
+            200512
+          ],
+          "oracle_qids": [
+            150100,
+            200512
+          ]
+        }
+      }
+    },
+    "soundness": 1.0,
+    "soundness_hops": {
+      "verified": 33,
+      "total": 33
+    },
+    "soundness_by_origin": {
+      "deterministic": {
+        "rate": 1.0,
+        "verified": 33,
+        "total": 33
+      }
+    },
+    "soundness_grounded": 1.0,
+    "soundness_grounded_hops": {
+      "verified": 33,
+      "total": 33
+    },
+    "ranking": {
+      "average_precision": 0.8135,
+      "mrr": 1.0,
+      "precision_at_n": 0.7143,
+      "n_documented_detected": 6,
+      "ranked_targets": [
+        {
+          "target": "SETTLEMENT01",
+          "score": 1.0,
+          "documented": true
+        },
+        {
+          "target": "SWIFT-GW01",
+          "score": 1.0,
+          "documented": true
+        },
+        {
+          "target": "CORE-SW01",
+          "score": 1.0,
+          "documented": false
+        },
+        {
+          "target": "DC01",
+          "score": 0.7115,
+          "documented": true
+        },
+        {
+          "target": "APP-PAY01",
+          "score": 0.6506,
+          "documented": false
+        },
+        {
+          "target": "acmebank-finance-rds",
+          "score": 0.5558,
+          "documented": true
+        },
+        {
+          "target": "PAY-CORE01",
+          "score": 0.4583,
+          "documented": true
+        },
+        {
+          "target": "DB-PAY01",
+          "score": 0.4006,
+          "documented": true
+        }
+      ]
+    },
+    "hallucination_rate": 0.0,
+    "hallucination_refs": {
+      "bad": 0,
+      "total": 73
+    }
+  },
+  "ghrab": {
+    "dataset": "ghrab",
+    "ai_enabled": false,
+    "ai_error": null,
+    "capability_provenance": {
+      "regex": 32,
+      "llm": 0,
+      "both": 0
+    },
+    "counts": {
+      "detected_paths": 13,
+      "oracle_paths": 6,
+      "assets": 30,
+      "findings": 32,
+      "graph_edges": 163
+    },
+    "target_level": {
+      "tp": 4,
+      "precision": 0.5,
+      "recall": 0.6667,
+      "f1": 0.5714,
+      "oracle_targets": [
+        "BACKUP-MGR01",
+        "DB-CRM01",
+        "DB-TRADE01",
+        "FILESRV01",
+        "SWIFT-GATEWAY01",
+        "ghrab-finance-rds"
+      ],
+      "detected_targets": [
+        "APP-TRADE01",
+        "BACKUP-MGR01",
+        "DB-TRADE01",
+        "DC01",
+        "SETTLEMENT01",
+        "SWIFT-GATEWAY01",
+        "TRADE-CORE01",
+        "ghrab-finance-rds"
+      ],
+      "reached_targets": [
+        "BACKUP-MGR01",
+        "DB-TRADE01",
+        "SWIFT-GATEWAY01",
+        "ghrab-finance-rds"
+      ],
+      "missed_targets": [
+        "DB-CRM01",
+        "FILESRV01"
+      ]
+    },
+    "edge_level": {
+      "qid_jaccard_mean": 0.4183,
+      "host_jaccard_mean": 0.3778,
+      "recall": 0.4944,
+      "precision": 0.5782,
+      "f1": 0.533,
+      "per_path": {
+        "FILESRV01": {
+          "qid_jaccard": 0.2,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.25,
+          "recovered_qids": [
+            105001
+          ],
+          "oracle_qids": [
+            38689,
+            90013,
+            105001,
+            150220
+          ]
+        },
+        "DB-CRM01": {
+          "qid_jaccard": 0.6667,
+          "host_jaccard": 0.4,
+          "qid_recall": 0.8,
+          "recovered_qids": [
+            11827,
+            11831,
+            13398,
+            200114
+          ],
+          "oracle_qids": [
+            11827,
+            11831,
+            13398,
+            200114,
+            200338
+          ]
+        },
+        "ghrab-finance-rds": {
+          "qid_jaccard": 0.6667,
+          "host_jaccard": 0.6667,
+          "qid_recall": 0.6667,
+          "recovered_qids": [
+            300011,
+            300067
+          ],
+          "oracle_qids": [
+            300011,
+            300045,
+            300067
+          ]
+        },
+        "BACKUP-MGR01": {
+          "qid_jaccard": 0.3333,
+          "host_jaccard": 0.2,
+          "qid_recall": 0.4,
+          "recovered_qids": [
+            200401,
+            200455
+          ],
+          "oracle_qids": [
+            43111,
+            43287,
+            90211,
+            200401,
+            200455
+          ]
+        },
+        "SWIFT-GATEWAY01": {
+          "qid_jaccard": 0.5,
+          "host_jaccard": 0.5,
+          "qid_recall": 0.6,
+          "recovered_qids": [
+            90512,
+            200512,
+            200533
+          ],
+          "oracle_qids": [
+            45923,
+            90344,
+            90512,
+            200512,
+            200533
+          ]
+        },
+        "DB-TRADE01": {
+          "qid_jaccard": 0.1429,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.25,
+          "recovered_qids": [
+            200622
+          ],
+          "oracle_qids": [
+            150221,
+            150233,
+            200601,
+            200622
+          ]
+        }
+      }
+    },
+    "soundness": 1.0,
+    "soundness_hops": {
+      "verified": 31,
+      "total": 31
+    },
+    "soundness_by_origin": {
+      "deterministic": {
+        "rate": 1.0,
+        "verified": 31,
+        "total": 31
+      }
+    },
+    "soundness_grounded": 1.0,
+    "soundness_grounded_hops": {
+      "verified": 31,
+      "total": 31
+    },
+    "ranking": {
+      "average_precision": 0.5821,
+      "mrr": 1.0,
+      "precision_at_n": 0.3333,
+      "n_documented_detected": 4,
+      "ranked_targets": [
+        {
+          "target": "SWIFT-GATEWAY01",
+          "score": 1.0,
+          "documented": true
+        },
+        {
+          "target": "SETTLEMENT01",
+          "score": 0.798,
+          "documented": false
+        },
+        {
+          "target": "TRADE-CORE01",
+          "score": 0.7962,
+          "documented": false
+        },
+        {
+          "target": "DC01",
+          "score": 0.7756,
+          "documented": false
+        },
+        {
+          "target": "DB-TRADE01",
+          "score": 0.7563,
+          "documented": true
+        },
+        {
+          "target": "APP-TRADE01",
+          "score": 0.689,
+          "documented": false
+        },
+        {
+          "target": "BACKUP-MGR01",
+          "score": 0.6279,
+          "documented": true
+        },
+        {
+          "target": "ghrab-finance-rds",
+          "score": 0.6162,
+          "documented": true
+        }
+      ]
+    },
+    "hallucination_rate": 0.0,
+    "hallucination_refs": {
+      "bad": 0,
+      "total": 75
+    }
+  },
+  "velon": {
+    "dataset": "velon",
+    "ai_enabled": false,
+    "ai_error": null,
+    "capability_provenance": {
+      "regex": 32,
+      "llm": 0,
+      "both": 0
+    },
+    "counts": {
+      "detected_paths": 19,
+      "oracle_paths": 6,
+      "assets": 29,
+      "findings": 32,
+      "graph_edges": 147
+    },
+    "target_level": {
+      "tp": 5,
+      "precision": 0.4545,
+      "recall": 0.8333,
+      "f1": 0.5882,
+      "oracle_targets": [
+        "BACKUP-MGR01",
+        "DB-CLAIMS01",
+        "DB-EHR01",
+        "FILESRV01",
+        "PHARMACY-DISPENSE01",
+        "velon-claims-db"
+      ],
+      "detected_targets": [
+        "BACKUP-MGR01",
+        "DB-CLAIMS01",
+        "DB-EHR01",
+        "DC01",
+        "EHR-APP01",
+        "HYPERVISOR01",
+        "INFUSION-GW01",
+        "PACS-MODALITY01",
+        "PHARMACY-DISPENSE01",
+        "TELEHEALTH-APP01",
+        "velon-claims-db"
+      ],
+      "reached_targets": [
+        "BACKUP-MGR01",
+        "DB-CLAIMS01",
+        "DB-EHR01",
+        "PHARMACY-DISPENSE01",
+        "velon-claims-db"
+      ],
+      "missed_targets": [
+        "FILESRV01"
+      ]
+    },
+    "edge_level": {
+      "qid_jaccard_mean": 0.4224,
+      "host_jaccard_mean": 0.3778,
+      "recall": 0.4611,
+      "precision": 0.6377,
+      "f1": 0.5352,
+      "per_path": {
+        "FILESRV01": {
+          "qid_jaccard": 0.2,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.25,
+          "recovered_qids": [
+            110001
+          ],
+          "oracle_qids": [
+            46587,
+            91022,
+            110001,
+            150401
+          ]
+        },
+        "DB-EHR01": {
+          "qid_jaccard": 0.8,
+          "host_jaccard": 0.4,
+          "qid_recall": 0.8,
+          "recovered_qids": [
+            12055,
+            12061,
+            200901,
+            200933
+          ],
+          "oracle_qids": [
+            12055,
+            12061,
+            20144,
+            200901,
+            200933
+          ]
+        },
+        "velon-claims-db": {
+          "qid_jaccard": 0.6667,
+          "host_jaccard": 0.6667,
+          "qid_recall": 0.6667,
+          "recovered_qids": [
+            300201,
+            300228
+          ],
+          "oracle_qids": [
+            300201,
+            300214,
+            300228
+          ]
+        },
+        "BACKUP-MGR01": {
+          "qid_jaccard": 0.6,
+          "host_jaccard": 0.5,
+          "qid_recall": 0.6,
+          "recovered_qids": [
+            46840,
+            200955,
+            200977
+          ],
+          "oracle_qids": [
+            46840,
+            46912,
+            91145,
+            200955,
+            200977
+          ]
+        },
+        "PHARMACY-DISPENSE01": {
+          "qid_jaccard": 0.125,
+          "host_jaccard": 0.2,
+          "qid_recall": 0.2,
+          "recovered_qids": [
+            201011
+          ],
+          "oracle_qids": [
+            91260,
+            91278,
+            200999,
+            201011,
+            400012
+          ]
+        },
+        "DB-CLAIMS01": {
+          "qid_jaccard": 0.1429,
+          "host_jaccard": 0.25,
+          "qid_recall": 0.25,
+          "recovered_qids": [
+            201055
+          ],
+          "oracle_qids": [
+            150455,
+            150467,
+            201033,
+            201055
+          ]
+        }
+      }
+    },
+    "soundness": 1.0,
+    "soundness_hops": {
+      "verified": 45,
+      "total": 45
+    },
+    "soundness_by_origin": {
+      "deterministic": {
+        "rate": 1.0,
+        "verified": 45,
+        "total": 45
+      }
+    },
+    "soundness_grounded": 1.0,
+    "soundness_grounded_hops": {
+      "verified": 45,
+      "total": 45
+    },
+    "ranking": {
+      "average_precision": 0.5833,
+      "mrr": 0.5,
+      "precision_at_n": 0.5,
+      "n_documented_detected": 5,
+      "ranked_targets": [
+        {
+          "target": "EHR-APP01",
+          "score": 1.0,
+          "documented": false
+        },
+        {
+          "target": "BACKUP-MGR01",
+          "score": 0.8168,
+          "documented": true
+        },
+        {
+          "target": "PHARMACY-DISPENSE01",
+          "score": 0.7557,
+          "documented": true
+        },
+        {
+          "target": "DB-EHR01",
+          "score": 0.7557,
+          "documented": true
+        },
+        {
+          "target": "TELEHEALTH-APP01",
+          "score": 0.4503,
+          "documented": false
+        },
+        {
+          "target": "HYPERVISOR01",
+          "score": 0.4503,
+          "documented": false
+        },
+        {
+          "target": "INFUSION-GW01",
+          "score": 0.4072,
+          "documented": false
+        },
+        {
+          "target": "DB-CLAIMS01",
+          "score": 0.206,
+          "documented": true
+        },
+        {
+          "target": "PACS-MODALITY01",
+          "score": 0.0407,
+          "documented": false
+        },
+        {
+          "target": "velon-claims-db",
+          "score": 0.0293,
+          "documented": true
+        },
+        {
+          "target": "DC01",
+          "score": 0.0,
+          "documented": false
+        }
+      ]
+    },
+    "hallucination_rate": 0.0,
+    "hallucination_refs": {
+      "bad": 0,
+      "total": 112
+    }
+  }
+}

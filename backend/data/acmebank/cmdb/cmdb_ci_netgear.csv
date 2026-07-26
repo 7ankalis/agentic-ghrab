@@ -1,0 +1,6 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+NGR-AB-2001,PERIM-FW01,NET-AB-0020,10.20.20.1,Palo Alto Firewall,High,GRP-AB-NET,BSVC-AB-04
+NGR-AB-2002,LB01,NET-AB-0020,10.20.20.5,F5 BIG-IP,Business-Important,GRP-AB-NET,BSVC-AB-01
+NGR-AB-2003,VPN-GW01,NET-AB-0020,10.20.20.20,FortiGate VPN,Business-Important,GRP-AB-NET,BSVC-AB-04
+NGR-AB-2004,CORE-SW01,NET-AB-0010,10.20.10.1,Cisco Switch,High,GRP-AB-NET,BSVC-AB-04
+NGR-AB-2005,GUEST-AP-SW01,NET-AB-0070,10.20.70.1,Access Switch,Standard,GRP-AB-NET,BSVC-AB-04

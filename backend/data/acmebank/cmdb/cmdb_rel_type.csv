@@ -1,0 +1,13 @@
+rel_type,inverse
+Runs on,Runs
+Hosted on,Hosts
+Virtualized on,Hosts
+Depends on,Used by
+Linked to,Linked from
+Backs up,Backed up by
+Manages,Managed by
+Forwards to,Receives from
+Authenticates to,Authenticates
+Grants session to,Session granted by
+Has access to,Accessed by
+Connects to,Connected by

@@ -1,0 +1,5 @@
+ci_id,name,provider,type,criticality,support_group,business_service
+CLD-AB-5001,acmebank-public-assets,AWS,Object Storage (S3),Business-Important,GRP-AB-CLD,BSVC-AB-05
+CLD-AB-5002,acmebank-app-role,AWS,IAM Role,High,GRP-AB-CLD,BSVC-AB-05
+CLD-AB-5003,acmebank-finance-rds,AWS,Managed Database (RDS PostgreSQL),High,GRP-AB-CLD,BSVC-AB-05
+CLD-AB-5004,acmebank.onmicrosoft.com,Microsoft Entra ID,Identity Tenant,High,GRP-AB-CLD,BSVC-AB-04

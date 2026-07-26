@@ -1,0 +1,5 @@
+ci_id,name,provider,type,criticality,support_group,business_service
+CLD-GH-5001,ghrab-public-assets,AWS,Object Storage,Business-Important,GRP-GH-CLD,BSVC-GH-05
+CLD-GH-5002,ghrab-app-role,AWS,IAM Role,High,GRP-GH-CLD,BSVC-GH-05
+CLD-GH-5003,ghrab-finance-rds,AWS,Managed Database (PostgreSQL),High,GRP-GH-CLD,BSVC-GH-05
+CLD-GH-5004,ghrab.onmicrosoft.com,Microsoft Entra ID,Identity Tenant,High,GRP-GH-CLD,BSVC-GH-04

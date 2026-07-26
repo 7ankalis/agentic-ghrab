@@ -1,0 +1,6 @@
+group_id,name,responsible_for
+GRP-EL-IT,IT Infrastructure Team,"Windows/Linux server patching, AD, endpoints, backup infra"
+GRP-EL-NET,Network Team,"Firewalls, VLAN segmentation, VPN, load balancing"
+GRP-EL-APP,AppSec/Dev Team,"Web/application-layer vulnerabilities, secure SDLC"
+GRP-EL-PAY,Payment Systems Team,"PCI CDE hardening, payment switch, HSM, card data handling"
+GRP-EL-CLD,Cloud Team,"Azure configuration, storage, IAM"

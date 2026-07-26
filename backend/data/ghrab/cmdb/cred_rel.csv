@@ -1,0 +1,7 @@
+rel_id,identity_ci,valid_on,access_level,enabling_qid,issue
+CRED-GH-01,ID-GH-6003,SRV-GH-1003;SRV-GH-1004;SRV-GH-1002,Local Administrator,90013,Enables pass-the-hash lateral movement (QID 90013)
+CRED-GH-02,ID-GH-6002,SRV-GH-1001;SRV-GH-1022,Domain User + local service,90344,"Kerberoastable, weak password (QID 90344)"
+CRED-GH-03,ID-GH-6004,SRV-GH-1001;SRV-GH-1040;SRV-GH-1042;SRV-GH-1050,Full domain administrative control,200512,Flat trust extends DA reach into the Finance zone (QID 200512)
+CRED-GH-04,ID-GH-6005,SRV-GH-1040;SRV-GH-1042,Administrative,200533,Same credential as Domain Admin — violates SWIFT CSP (QID 200533)
+CRED-GH-05,ID-GH-6006,CLD-GH-5001;CLD-GH-5003,AWS AdministratorAccess,300045,Excessive IAM policy (QID 300045)
+CRED-GH-06,SRV-GH-1050,SRV-GH-1050,"Domain Admin (cached, LSASS-resident)",90211,Credential hygiene violation (QID 90211)

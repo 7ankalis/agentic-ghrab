@@ -1,0 +1,29 @@
+rel_id,source_ci,rel_type,target_ci,port,flag,enabling_qid,justification
+REL-GH-V01,SRV-GH-1011,REL-GH-V01,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V02,SRV-GH-1013,REL-GH-V02,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V03,SRV-GH-1020,REL-GH-V03,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V04,SRV-GH-1021,REL-GH-V04,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V05,SRV-GH-1022,REL-GH-V05,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V06,SRV-GH-1030,REL-GH-V06,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V07,SRV-GH-1031,REL-GH-V07,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V08,SRV-GH-1032,REL-GH-V08,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V09,SRV-GH-1040,REL-GH-V09,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V10,SRV-GH-1041,REL-GH-V10,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V11,SRV-GH-1042,REL-GH-V11,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-V12,SRV-GH-1002,REL-GH-V12,SRV-GH-1051,,Legitimate,,Guest VM
+REL-GH-101,SRV-GH-1010,Forwards To,SRV-GH-1011,443→443,Legitimate,,Reverse proxy for public website
+REL-GH-102,SRV-GH-1020,Depends On,SRV-GH-1030,1433,"Legitimate connection / Excessive privilege (db_owner, QID 200338)",200338,"CRM app database backend, via svc_crmapp"
+REL-GH-103,SRV-GH-1022,Depends On,SRV-GH-1032,1521,Legitimate connection / Secrets exposed (QID 150233),150233,Trading platform database backend
+REL-GH-104,SRV-GH-1021,Depends On,SRV-GH-1031,1521,Legitimate,,Payroll integration read access (documented business need)
+REL-GH-105,SRV-GH-1032,Linked To (DB Link),SRV-GH-1041,1521,Excessive (QID 200622),200622,"One-time historical migration link, never removed"
+REL-GH-106,SRV-GH-1003,Authenticates To,SRV-GH-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-GH-107,SRV-GH-1004,Authenticates To,SRV-GH-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-GH-108,SRV-GH-1002,Authenticates To,SRV-GH-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-GH-109,SRV-GH-1050,Manages,SRV-GH-1051,443 (vSphere API),Legitimate,,Admin bastion for virtualization management
+REL-GH-110,SRV-GH-1050,Manages,SRV-GH-1052,9392,Legitimate,,Admin bastion for backup management
+REL-GH-111,SRV-GH-1052,Backs Up,SRV-GH-1081,445,Legitimate,,Scheduled backup jobs
+REL-GH-112,SRV-GH-1052,Backs Up,SRV-GH-1080,445,Legitimate,,Scheduled backup jobs
+REL-GH-113,SRV-GH-1052,Backs Up,SRV-GH-1031,445,Legitimate,,Nightly DB dump backup — explains why NAS/backup compromise exposes finance data
+REL-GH-114,SRV-GH-1052,Backs Up,SRV-GH-1032,445,Legitimate,,Nightly DB dump backup
+REL-GH-115,CLD-GH-5001,Grants Session To,CLD-GH-5002,HTTPS/AWS API,Excessive (QID 300011),300011,Leaked backup file in bucket contains role credentials
+REL-GH-116,CLD-GH-5002,Has Access To,CLD-GH-5003,AWS API / 5432,Excessive (QID 300045),300045,AdministratorAccess policy grants access to all AWS resources

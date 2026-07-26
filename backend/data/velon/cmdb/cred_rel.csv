@@ -1,0 +1,7 @@
+rel_id,identity_ci,valid_on,access_level,enabling_qid,issue
+CRED-VL-01,ID-VL-6003,SRV-VL-1004;SRV-VL-1002;SRV-VL-1003,Local Administrator,91022,Enables pass-the-hash lateral movement (QID 91022)
+CRED-VL-02,ID-VL-6002,SRV-VL-1001,Domain User + local service,91260,"Kerberoastable, weak password (QID 91260)"
+CRED-VL-03,ID-VL-6004,SRV-VL-1001;SRV-VL-1040;SRV-VL-1042;SRV-VL-1050,Full domain administrative control,200999,Flat trust extends DA reach into the Clinical zone (QID 200999)
+CRED-VL-04,ID-VL-6005,SRV-VL-1040;SRV-VL-1042,Administrative,201011,Same credential as Domain Admin — violates FDA postmarket guidance (QID 201011)
+CRED-VL-05,ID-VL-6006,CLD-VL-5001;CLD-VL-5003,Azure Subscription Owner,300214,Excessive RBAC role (QID 300214)
+CRED-VL-06,SRV-VL-1050,SRV-VL-1050,"Domain Admin (cached, LSASS-resident)",91145,Credential hygiene violation (QID 91145)

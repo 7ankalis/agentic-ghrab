@@ -1,0 +1,4 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+SRV-GH-1030,DB-CRM01,NET-GH-0030,10.10.30.10,MSSQL,Business-Important,GRP-GH-DBA,BSVC-GH-01
+SRV-GH-1031,DB-FIN01,NET-GH-0030,10.10.30.20,Oracle,High,GRP-GH-DBA,BSVC-GH-02
+SRV-GH-1032,DB-TRADE01,NET-GH-0030,10.10.30.30,Oracle,High,GRP-GH-DBA,BSVC-GH-02

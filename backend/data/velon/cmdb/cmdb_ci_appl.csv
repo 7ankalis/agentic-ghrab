@@ -1,0 +1,7 @@
+ci_id,name,runs_on,criticality,support_group,business_service
+APP-VL-3011,Velon Patient Portal (Drupal CMS),SRV-VL-1011,,GRP-VL-APP,BSVC-VL-01
+APP-VL-3020,Electronic Health Record (WebLogic),SRV-VL-1020,,GRP-VL-APP,BSVC-VL-01
+APP-VL-3022,Telehealth Backend (Spring),SRV-VL-1022,,GRP-VL-APP,BSVC-VL-02
+APP-VL-3013,Telehealth Video/Mail Relay Service,SRV-VL-1013,,GRP-VL-NET,BSVC-VL-02
+APP-VL-3001,Active Directory Domain Services,SRV-VL-1001,,GRP-VL-IT,BSVC-VL-04
+APP-VL-3051,VMware vCenter Server,SRV-VL-1051,,GRP-VL-IT,BSVC-VL-04

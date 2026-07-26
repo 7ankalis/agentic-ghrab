@@ -1,0 +1,7 @@
+ci_id,name,runs_on,criticality,support_group,business_service
+APP-GH-3011,Ghrab Public Website (WordPress CMS),SRV-GH-1011,,GRP-GH-APP,BSVC-GH-01
+APP-GH-3020,Ghrab CRM (Apache Struts2),SRV-GH-1020,,GRP-GH-APP,BSVC-GH-01
+APP-GH-3022,Ghrab Trading Platform (Java),SRV-GH-1022,,GRP-GH-APP,BSVC-GH-02
+APP-GH-3013,Exchange Mail Service,SRV-GH-1013,,GRP-GH-NET,BSVC-GH-04
+APP-GH-3001,Active Directory Domain Services,SRV-GH-1001,,GRP-GH-IT,BSVC-GH-04
+APP-GH-3051,VMware vCenter Server,SRV-GH-1051,,GRP-GH-IT,BSVC-GH-04

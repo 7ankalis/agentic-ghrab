@@ -70,8 +70,12 @@ export function buildAttackPathsReport(data: AttackPathsResponse): string {
     lines.push(`Confidence: ${p.confidence || "—"} · Novelty: ${p.novelty || "—"} · Blast radius: ${p.blast_radius} · Hops: ${p.length}\n`);
     lines.push("Kill chain: Internet → " + p.steps.map((s) => s.host).join(" → "));
     p.steps.forEach((s, i) => {
-      lines.push(`  ${i + 1}. **${s.host}** via ${s.arrival_kind}${s.arrival_via_qid ? ` (QID ${s.arrival_via_qid})` : ""}` +
-        (s.exploit_finding ? ` — exploited via ${s.exploit_finding.title}` : ""));
+      let line = `  ${i + 1}. **${s.host}** via ${s.arrival_kind}` +
+        (s.arrival_via_qid ? ` (QID ${s.arrival_via_qid} — ${s.arrival_finding?.title || s.arrival_technique})` : "");
+      if (s.exploit_finding && s.exploit_qid !== s.arrival_via_qid) {
+        line += ` → compromised via QID ${s.exploit_qid} (${s.exploit_finding.title})`;
+      }
+      lines.push(line);
     });
     lines.push("");
   });

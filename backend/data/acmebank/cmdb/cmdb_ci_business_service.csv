@@ -1,0 +1,6 @@
+ci_id,name,description
+BSVC-AB-01,Retail Banking & eBanking,"Customer-facing banking site, eBanking app, and customer data"
+BSVC-AB-02,Payments & Settlement,"Payment core, payments database, and settlement processing"
+BSVC-AB-03,SWIFT Messaging,Interbank payment messaging gateway
+BSVC-AB-04,Corporate IT & Identity,"Identity, email, file shares, endpoints, and infrastructure management"
+BSVC-AB-05,Cloud Data & Analytics,"AWS-hosted storage, identity, and managed database services"

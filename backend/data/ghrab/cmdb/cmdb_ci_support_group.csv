@@ -1,0 +1,7 @@
+group_id,name,responsible_for
+GRP-GH-IT,IT Infrastructure Team,"Windows/Linux server patching, AD, endpoints, backup infra"
+GRP-GH-NET,Network Team,"Firewalls, VLAN segmentation, VPN, routing, WiFi"
+GRP-GH-APP,AppSec Team,"Web/application-layer vulnerabilities, secure SDLC, app service accounts"
+GRP-GH-DBA,DBA Team,"Database hardening, account privilege scoping, DB links"
+GRP-GH-CLD,Cloud Team,"AWS configuration, IAM, cloud-native services"
+GRP-GH-GRC,Compliance-GRC Team,"PCI DSS/SWIFT CSP scope validation, segmentation testing"

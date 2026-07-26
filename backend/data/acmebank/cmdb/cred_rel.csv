@@ -1,0 +1,7 @@
+rel_id,identity_ci,valid_on,access_level,enabling_qid,issue
+CRED-AB-01,ID-AB-6003,SRV-AB-1003;SRV-AB-1004;SRV-AB-1002,Local Administrator,90013,Identical local admin password — enables pass-the-hash lateral movement
+CRED-AB-02,ID-AB-6002,SRV-AB-1001;SRV-AB-1022,Domain User + local service,90344,Kerberoastable weak password
+CRED-AB-03,ID-AB-6004,SRV-AB-1001;SRV-AB-1040;SRV-AB-1042;SRV-AB-1050,Full domain administrative control,200512,Flat trust extends Domain Admin reach into the CDE
+CRED-AB-04,ID-AB-6005,SRV-AB-1040;SRV-AB-1042,Administrative,200533,Same credential as Domain Admin — violates SWIFT CSP dedicated identity
+CRED-AB-05,ID-AB-6006,CLD-AB-5001;CLD-AB-5003,AWS AdministratorAccess,300045,Excessive IAM policy
+CRED-AB-06,ID-AB-6001,SRV-AB-1001;SRV-AB-1002;SRV-AB-1003;SRV-AB-1004,Domain,,AD forest domain membership

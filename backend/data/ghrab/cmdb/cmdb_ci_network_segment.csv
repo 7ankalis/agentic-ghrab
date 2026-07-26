@@ -1,0 +1,12 @@
+ci_id,name,vlan,cidr,trust_level,owner_group,business_purpose
+NET-GH-0010,VLAN 10 — Corporate LAN,10,10.10.10.0/24,Medium,GRP-GH-IT,
+NET-GH-0020,VLAN 20 — DMZ,20,10.10.20.0/24,Low (internet-facing),GRP-GH-NET,
+NET-GH-0021,VLAN 21 — App Tier,21,10.10.21.0/24,Medium,GRP-GH-APP,
+NET-GH-0030,VLAN 30 — DB Tier,30,10.10.30.0/24,High,GRP-GH-DBA,
+NET-GH-0040,VLAN 40 — Finance/Trading Critical Zone (CDE/SWIFT),40,10.10.40.0/24,Critical,GRP-GH-GRC,
+NET-GH-0050,VLAN 50 — Management/OOB,50,10.10.50.0/24,Critical (should be),GRP-GH-IT,
+NET-GH-0060,VLAN 60 — Branch/VPN,60,10.10.60.0/24,Medium,GRP-GH-NET,
+NET-GH-0070,VLAN 70 — Guest WiFi,70,10.10.70.0/24,Untrusted,GRP-GH-NET,
+NET-GH-0080,VLAN 80 — Backup/Storage,80,10.10.80.0/24,High,GRP-GH-IT,
+NET-GH-0090,Cloud — AWS VPC (ghrab-cloud-vpc),Cloud,N/A,Mixed,GRP-GH-CLD,
+NET-GH-INET,Internet (untrusted),INET,0.0.0.0/0,None,N/A,

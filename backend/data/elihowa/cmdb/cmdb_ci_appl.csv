@@ -1,0 +1,5 @@
+ci_id,name,runs_on,criticality,support_group,business_service
+APP-EL-3011,Elihowa Online Shop (Adobe Commerce/Magento),SRV-EL-1011,,GRP-EL-APP,BSVC-EL-01
+APP-EL-3012,Order Processing API,SRV-EL-1012,,GRP-EL-APP,BSVC-EL-01
+APP-EL-3001,Active Directory Domain Services,SRV-EL-1001,,GRP-EL-IT,BSVC-EL-03
+APP-EL-3030,Payment Switch Application,SRV-EL-1030,,GRP-EL-PAY,BSVC-EL-02

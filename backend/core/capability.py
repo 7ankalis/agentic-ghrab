@@ -84,6 +84,10 @@ class Capability:
     host_pivots: list[str] = field(default_factory=list)  # explicit downstream hosts
     is_entry: bool = False               # can seed an attack (internet/untrusted reachable)
     mitre_tactic: str = ""
+    # --- Provenance (Phase 1 hybrid classifier) ---------------------------------
+    source: str = "regex"                # regex | llm | both
+    capability_confidence: str = "high"  # high | medium | low
+    evidence: str = ""                   # span the LLM cited (empty for pure regex)
 
     @property
     def is_edge(self) -> bool:
@@ -255,3 +259,98 @@ def _technique_label(title: str) -> str:
 def classify_all(df: pd.DataFrame) -> dict[int, Capability]:
     known = {str(h) for h in df["Hostname"].unique()}
     return {int(r["QID"]): classify(r, known) for _, r in df.iterrows()}
+
+
+# ---------------------------------------------------------------------------
+# Hybrid classifier (Phase 1) — regex baseline + LLM gap-filling
+# ---------------------------------------------------------------------------
+
+def _merge_capability(row: pd.Series, R: Capability, L, known_all: set[str]) -> Capability:
+    """Combine the regex capability R with the LLM capability L for one finding.
+
+    Effects/grants are unioned so a finding is never lost to a keyword gap. Any
+    movement the LLM implies (credential reuse, segmentation break) is re-derived
+    from the finding's OWN text against the real asset set — the LLM never gets to
+    name a host, so no out-of-scope host can enter the graph. Provenance records
+    whether the two agreed (`both`/high), the LLM broadened an empty regex result
+    (`llm`/medium), or they diverged (`both`/medium)."""
+    title = str(row.get("Title", ""))
+    desc = str(row.get("Description", ""))
+    conseq = str(row.get("Consequence", ""))
+    host = str(row.get("Hostname", ""))
+    vlan = str(row.get("VLAN_ID", "")).strip()
+    blob = f"{title} {desc} {conseq}"
+
+    effects = list(dict.fromkeys([*R.effects, *L.effects]))
+    grants = list(dict.fromkeys([*R.grants, *L.grants]))
+    is_entry = R.is_entry or L.is_entry
+    if is_entry and INITIAL_ACCESS not in effects:
+        effects.insert(0, INITIAL_ACCESS)
+
+    zt = R.zone_transition
+    host_pivots = list(R.host_pivots)
+    if CREDENTIAL_THEFT in effects:
+        host_pivots = list(dict.fromkeys(host_pivots + _extract_hosts(blob, known_all, host)))
+        if re.search(r"domain admin|\bDA\b|kerberoast|zerologon", blob, re.I) \
+                and GRANT_DOMAIN_ADMIN not in grants:
+            grants.append(GRANT_DOMAIN_ADMIN)
+    if SEGMENTATION_BREAK in effects:
+        if zt is None:
+            zt = _zone_transition(vlan, blob)
+        if re.search(r"db link|database link", blob, re.I):
+            host_pivots = list(dict.fromkeys(host_pivots + _extract_hosts(blob, known_all, host)))
+
+    r_eff, l_eff = set(R.effects), set(L.effects)
+    if not l_eff:
+        source, conf = "regex", "high"
+    elif r_eff & l_eff:
+        source, conf = "both", "high"
+    elif r_eff <= {LATERAL}:            # regex only had its empty fallback → trust LLM
+        source, conf = "llm", "medium"
+    else:
+        source, conf = "both", "medium"
+
+    precondition = PRE_UNAUTH if is_entry else (L.precondition or R.precondition)
+    return Capability(
+        qid=R.qid, hostname=host, vlan=R.vlan,
+        technique=R.technique, precondition=precondition,
+        effects=effects, grants=grants, zone_transition=zt,
+        host_pivots=host_pivots, is_entry=is_entry,
+        mitre_tactic=_primary_tactic(effects),
+        source=source, capability_confidence=conf, evidence=L.evidence,
+    )
+
+
+def classify_all_hybrid(df: pd.DataFrame, cmdb=None, session_state=None,
+                        use_llm: bool | None = None) -> dict[int, Capability]:
+    """Regex + LLM capability classification with provenance.
+
+    The regex pass is identical to `classify_all`; when a provider is configured
+    and `use_llm` isn't disabled, an LLM pass (core/capability_llm.py) fills the
+    keyword gaps and is merged in. Graceful degradation is exact: no provider (or
+    `use_llm=False`) returns byte-identical output to `classify_all`, so the
+    deterministic pipeline is never affected."""
+    from core.config import CAPABILITY_LLM_ENABLED
+
+    known_regex = {str(h) for h in df["Hostname"].unique()}
+    rows = {int(r["QID"]): r for _, r in df.iterrows()}
+    regex_caps = {qid: classify(rows[qid], known_regex) for qid in rows}
+
+    want_llm = CAPABILITY_LLM_ENABLED if use_llm is None else use_llm
+    if want_llm:
+        from core.providers import any_provider_configured
+        want_llm = any_provider_configured(session_state)
+    if not want_llm:
+        return regex_caps
+
+    known_all = set(known_regex)
+    if cmdb is not None:
+        known_all |= {a.hostname for a in cmdb.assets}
+
+    from core.capability_llm import classify_llm
+    llm_caps = classify_llm(df, session_state)
+    return {
+        qid: (_merge_capability(rows[qid], R, llm_caps[qid], known_all)
+              if qid in llm_caps else R)
+        for qid, R in regex_caps.items()
+    }

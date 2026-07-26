@@ -1,0 +1,42 @@
+rel_id,source_ci,rel_type,target_ci,port,flag,enabling_qid,justification
+REL-AB-V01,SRV-AB-1011,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V02,SRV-AB-1013,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V03,SRV-AB-1020,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V04,SRV-AB-1021,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V05,SRV-AB-1022,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V06,DBS-AB-3001,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V07,DBS-AB-3002,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V08,SRV-AB-1040,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM — CDE crown jewel on shared hypervisor
+REL-AB-V09,SRV-AB-1041,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-V10,SRV-AB-1042,Virtualized on,SRV-AB-1051,vSphere,Legitimate,,Guest VM
+REL-AB-R01,APP-AB-4011,Runs on,SRV-AB-1011,,Legitimate,,Public website
+REL-AB-R02,APP-AB-4020,Runs on,SRV-AB-1020,,Legitimate,,eBanking app
+REL-AB-R03,APP-AB-4022,Runs on,SRV-AB-1022,,Legitimate,,Payments engine
+REL-AB-R04,APP-AB-4001,Runs on,SRV-AB-1001,,Legitimate,,AD DS
+REL-AB-R05,APP-AB-4051,Runs on,SRV-AB-1051,,Legitimate,,vCenter
+REL-AB-101,NGR-AB-2002,Forwards to,SRV-AB-1011,443,Legitimate,,Reverse proxy for public website
+REL-AB-102,SRV-AB-1020,Depends on,DBS-AB-3001,1433,Excessive (db_owner),200338,eBanking DB backend via app service account
+REL-AB-103,SRV-AB-1022,Depends on,DBS-AB-3002,1521,Secrets exposed,150233,Payments engine DB backend
+REL-AB-104,SRV-AB-1021,Depends on,DBS-AB-3003,5432,Legitimate,,HR app read access (documented business need)
+REL-AB-105,DBS-AB-3002,Linked to,SRV-AB-1041,1521,Excessive (stale DB link),200622,"One-time migration link into settlement, never removed"
+REL-AB-106,SRV-AB-1003,Authenticates to,SRV-AB-1001,Kerberos,Legitimate,,Domain join
+REL-AB-107,SRV-AB-1004,Authenticates to,SRV-AB-1001,Kerberos,Legitimate,,Domain join
+REL-AB-108,SRV-AB-1002,Authenticates to,SRV-AB-1001,Kerberos,Legitimate,,Domain join
+REL-AB-109,SRV-AB-1050,Manages,SRV-AB-1051,443,Legitimate,,Admin bastion for virtualization
+REL-AB-110,SRV-AB-1050,Manages,SRV-AB-1052,9392,Legitimate,,Admin bastion for backup
+REL-AB-111,SRV-AB-1052,Backs up,DBS-AB-3002,445,Legitimate,,Nightly payments DB dump — backup compromise exposes payments data
+REL-AB-112,SRV-AB-1052,Backs up,SRV-AB-1081,445,Legitimate,,Scheduled backup jobs
+REL-AB-113,SRV-AB-1052,Backs up,SRV-AB-1090,445,Legitimate,,DR replication of payment core
+REL-AB-114,SRV-AB-1090,Depends on,SRV-AB-1091,1521,Legitimate,,DR payment core to DR database
+REL-AB-115,CLD-AB-5001,Grants session to,CLD-AB-5002,HTTPS,Excessive,300011,Leaked backup in bucket contains role credentials
+REL-AB-116,CLD-AB-5002,Has access to,CLD-AB-5003,AWS API,Excessive,300045,AdministratorAccess policy reaches all AWS resources
+REL-AB-117,SRV-AB-1090,Connects to,SRV-AB-1040,445,Legitimate,,DR replication link (grounding)
+REL-AB-118,SRV-AB-1052,Backs up,SRV-AB-1080,445,Legitimate,,NAS backup target
+REL-AB-119,SRV-AB-1005,Connects to,SRV-AB-1001,8530,Legitimate,,WSUS patch approvals (grounding)
+REL-AB-120,NGR-AB-2001,Connects to,NET-AB-0020,,Legitimate,,Perimeter firewall borders the DMZ
+REL-AB-121,NGR-AB-2003,Connects to,NET-AB-0060,,Legitimate,,VPN concentrator for branch/remote
+REL-AB-122,NGR-AB-2004,Connects to,NET-AB-0010,,Legitimate,,Core switch for the corporate LAN
+REL-AB-123,NGR-AB-2005,Connects to,NET-AB-0070,,Legitimate,,Guest wireless access switch
+REL-AB-124,SRV-AB-1061,Authenticates to,SRV-AB-1001,Kerberos,Legitimate,,Branch workstation domain join
+REL-AB-125,SRV-AB-1001,Connects to,CLD-AB-5004,443,Legitimate,,Entra Connect hybrid identity sync (grounding)
+REL-AB-199,SRV-AB-1052,Backs up,SRV-AB-9999,445,Legitimate,,Stale backup job referencing a decommissioned host

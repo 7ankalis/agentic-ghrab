@@ -1,0 +1,5 @@
+ci_id,name,provider,type,criticality,support_group,business_service
+CLD-VL-5001,velon-imaging-archive,Microsoft Azure,Object Storage,Business-Important,GRP-VL-CLD,BSVC-VL-01
+CLD-VL-5002,velon-app-sp,Microsoft Azure,Azure AD App Registration,High,GRP-VL-CLD,BSVC-VL-01
+CLD-VL-5003,velon-claims-db,Microsoft Azure,Managed Database (Azure SQL),High,GRP-VL-CLD,BSVC-VL-03
+CLD-VL-5004,velon.onmicrosoft.com,Microsoft Azure AD,Identity Tenant,High,GRP-VL-CLD,BSVC-VL-04

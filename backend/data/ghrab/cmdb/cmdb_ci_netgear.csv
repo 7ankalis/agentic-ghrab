@@ -1,0 +1,5 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+SRV-GH-1010,LB01,NET-GH-0020,10.10.20.5,F5/NGINX Appliance,Business-Important,GRP-GH-NET,BSVC-GH-01
+SRV-GH-1012,VPN-GW01,NET-GH-0020,10.10.20.20,FortiGate Appliance,Business-Important,GRP-GH-NET,BSVC-GH-04
+SRV-GH-1060,BRANCH-RTR01,NET-GH-0060,10.10.60.1,Router Appliance,Standard,GRP-GH-NET,BSVC-GH-04
+SRV-GH-1070,GUEST-AP-SW01,NET-GH-0070,10.10.70.1,Access Switch,Standard,GRP-GH-NET,BSVC-GH-04

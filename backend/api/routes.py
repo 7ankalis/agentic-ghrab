@@ -40,6 +40,39 @@ class DatasetSelect(BaseModel):
     key: str
 
 
+@router.get("/cmdb/validate")
+def cmdb_validate():
+    """Referential-integrity report for the active dataset's CMDB (docs/cmdb-
+    accuracy-brief.md §1). A CSV-backed dataset is checked structurally: every
+    relationship / reachability / credential endpoint resolves to a real CI, every
+    segment appears in the reachability base, no host CI is orphaned, and every
+    finding's CI_ID maps to a CI. `ok` is False when any defect is found (the
+    acmebank dataset intentionally seeds a few to prove this fails loud). Markdown
+    datasets report `backend=markdown` — structural CSV validation is N/A."""
+    from core import cmdb_store
+    from core import datasets as dm
+    ds = dm.get_active()
+    rep = cmdb_store.validate_active()
+    if rep is None:
+        return {"dataset": ds.key, "backend": "markdown", "ok": True,
+                "summary": f"Dataset '{ds.key}' is markdown-backed; structural CSV "
+                           "validation is not applicable.",
+                "defects": []}
+    return {
+        "dataset": rep.dataset, "backend": "csv", "ok": rep.ok,
+        "summary": rep.summary(),
+        "ci_count": rep.ci_count, "relationship_count": rep.relationship_count,
+        "defects": rep.defects,
+        "buckets": {
+            "dangling_refs": rep.dangling_refs, "orphan_cis": rep.orphan_cis,
+            "zones_without_rules": rep.zones_without_rules,
+            "findings_without_ci": rep.findings_without_ci,
+            "duplicate_ci_ids": rep.duplicate_ci_ids,
+            "unknown_rel_types": rep.unknown_rel_types,
+        },
+    }
+
+
 @router.post("/datasets/select")
 def select_dataset(body: DatasetSelect):
     """Set the active enterprise. Flushes the cached data + analysis so the next

@@ -1,0 +1,7 @@
+group_id,name,responsible_for
+GRP-VL-IT,IT Infrastructure Team,"Windows/Linux server patching, AD, endpoints, backup infra"
+GRP-VL-NET,Network Team,"Firewalls, VLAN segmentation, VPN, guest WiFi"
+GRP-VL-APP,AppSec Team,"Web/application-layer vulnerabilities, secure SDLC, app service accounts"
+GRP-VL-DBA,DBA Team,"Database hardening, account privilege scoping, DB links"
+GRP-VL-CLD,Cloud Team,"Azure configuration, IAM, cloud-native services"
+GRP-VL-CE,Clinical Engineering & Compliance,"Biomedical/IoT device security, HIPAA/FDA compliance, clinical zone segmentation"

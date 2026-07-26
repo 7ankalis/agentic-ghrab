@@ -11,6 +11,19 @@ from dataclasses import dataclass, field
 
 from core.config import active_architecture_md
 
+_PAREN_RE = re.compile(r"\(([^)]+)\)")
+_QID_RE = re.compile(r"QID\s*(\d+)", re.I)
+
+
+def _paren_host(s: str) -> str:
+    m = _PAREN_RE.search(str(s))
+    return m.group(1).strip() if m else ""
+
+
+def _first_qid(s: str) -> int | None:
+    m = _QID_RE.search(str(s))
+    return int(m.group(1)) if m else None
+
 
 @dataclass
 class Zone:
@@ -91,11 +104,49 @@ class CMDB:
         self.reachability_rules: list[str] = []     # §3 zone-to-zone reachability
         self.dependencies: list[str] = []           # §4 host/app/db dependencies
         self.cred_relations: list[str] = []         # §5 identity/credential reuse
+        # Structured §4 dependency edges (host→host pivots) with the enabling
+        # relationship id + any cited QID, resolved to real asset names. This is
+        # what the reachability graph builds app→db / hypervisor / backup / cloud
+        # pivots from, instead of hardcoded VLAN-tier assumptions (Phase 2).
+        self.dependency_edges: list[dict] = []
+        # Structured §3 reachability rows (src/dst zone ci + vlan, status, rule id,
+        # enabling qid) from a CSV-backed dataset. Text goes to reachability_rules
+        # for grounding parity; this typed list is what Phase 3 turns into real
+        # zone-to-zone edges + Should-Not-Exist vetoes. Empty for markdown datasets.
+        self.reachability_edges: list[dict] = []
+        # Set only for CSV-backed datasets: the raw schema records (core/cmdb_store)
+        # and the referential-integrity report surfaced by GET /api/cmdb/validate.
+        self.structured = None
+        self.validation_report = None
         self.raw_markdown: str = ""
 
+    def _resolve_asset(self, raw: str) -> str:
+        """Best-effort map a §4 CI reference ('SRV-GH-1020 (APP-CRM01)',
+        'CLD-GH-5001 (S3 ghrab-public-assets)') to a real asset hostname."""
+        n = _paren_host(raw) or str(raw).strip()
+        names = [a.hostname for a in self.assets]
+        if n in names:
+            return n
+        low = n.lower()
+        for h in names:
+            if h and (h.lower() == low or low.endswith(h.lower()) or h.lower() in low):
+                return h
+        return n
+
     def load(self, path=None) -> "CMDB":
+        # Two source-of-truth shapes: a CSV-backed relational CMDB (a directory of
+        # cmdb_ci_*.csv + cmdb_rel_ci.csv, the ServiceNow export shape) or the
+        # legacy markdown architecture doc. A directory ⇒ CSV; a file ⇒ markdown.
+        # With no explicit path we resolve from the active dataset, which knows
+        # which kind it is (core/datasets.py).
         if path is None:
+            from core.config import active_cmdb_dir
+            cmdb_dir = active_cmdb_dir()
+            if cmdb_dir is not None:
+                return self._load_csv_format(cmdb_dir)
             path = active_architecture_md()
+        elif path.is_dir():
+            return self._load_csv_format(path)
         text = path.read_text(encoding="utf-8")
         self.raw_markdown = text
         # Two known doc shapes: the legacy "## 3. Asset Inventory" prose-table
@@ -109,6 +160,19 @@ class CMDB:
             self._load_ci_format(text)
         else:
             self._load_legacy_format(text)
+        self._link_assets_to_zones()
+        return self
+
+    def _load_csv_format(self, cmdb_dir) -> "CMDB":
+        """Load a relational CSV-backed CMDB. Populates the same fields the
+        markdown parsers fill (zones/assets/teams/dependency_edges/…) plus the
+        structured reachability_edges + validation_report, then links zones."""
+        from pathlib import Path
+
+        from core import cmdb_store
+        cmdb_dir = Path(cmdb_dir)
+        dataset = cmdb_dir.parent.name
+        cmdb_store.build_cmdb(self, cmdb_dir, dataset)
         self._link_assets_to_zones()
         return self
 
@@ -298,6 +362,15 @@ class CMDB:
                     f"{rid}: {src} --[{rtype}]--> {tgt}"
                     + (f" [{flag}]" if flag else "") + (f" — {just}" if just else "")
                 )
+                self.dependency_edges.append({
+                    "rel_id": rid,
+                    "src_host": self._resolve_asset(src),
+                    "dst_host": self._resolve_asset(tgt),
+                    "rtype": str(rtype).strip(),
+                    "flag": str(flag).strip(),
+                    "qid": _first_qid(f"{flag} {just}"),
+                    "label": f"{rid}: {rtype}".strip(),
+                })
 
         # §5 Identity & Credential relationships — a credential valid on >1 CI is a
         # non-network pivot, the class of move a zone-only view misses entirely.

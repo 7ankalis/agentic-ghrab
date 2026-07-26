@@ -1,0 +1,27 @@
+rel_id,source_ci,rel_type,target_ci,port,flag,enabling_qid,justification
+REL-VL-V01,SRV-VL-1011,REL-VL-V01,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V02,SRV-VL-1013,REL-VL-V02,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V03,SRV-VL-1020,REL-VL-V03,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V04,SRV-VL-1021,REL-VL-V04,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V05,SRV-VL-1022,REL-VL-V05,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V06,SRV-VL-1030,REL-VL-V06,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V07,SRV-VL-1031,REL-VL-V07,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V08,SRV-VL-1032,REL-VL-V08,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V09,SRV-VL-1002,REL-VL-V09,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-V10,SRV-VL-1013,REL-VL-V10,SRV-VL-1051,,Legitimate,,Guest VM
+REL-VL-101,SRV-VL-1010,Forwards To,SRV-VL-1011,443→443,Legitimate,,Reverse proxy for patient portal
+REL-VL-102,SRV-VL-1020,Depends On,SRV-VL-1030,1433,"Legitimate connection / Excessive privilege (db_owner, QID 200933)",200933,"EHR application database backend, via svc_ehrapp"
+REL-VL-103,SRV-VL-1022,Depends On,SRV-VL-1032,1433,Legitimate connection / Secrets exposed (QID 150467),150467,Telehealth billing integration
+REL-VL-104,SRV-VL-1021,Depends On,SRV-VL-1031,1433,Legitimate,,Billing-to-imaging cross-reference for procedure codes (documented business need)
+REL-VL-105,SRV-VL-1032,Linked To (DB Link),SRV-VL-1030,1433,Excessive (QID 201055),201055,Insurance eligibility verification integration; linked server credentials never scoped down after go-live
+REL-VL-106,SRV-VL-1004,Authenticates To,SRV-VL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-VL-107,SRV-VL-1003,Authenticates To,SRV-VL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-VL-108,SRV-VL-1002,Authenticates To,SRV-VL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-VL-109,SRV-VL-1050,Manages,SRV-VL-1051,443 (vSphere API),Legitimate,,Admin bastion for virtualization management
+REL-VL-110,SRV-VL-1050,Manages,SRV-VL-1052,9392,Legitimate,,Admin bastion for backup management
+REL-VL-111,SRV-VL-1052,Backs Up,SRV-VL-1081,445,Legitimate,,Scheduled backup jobs
+REL-VL-112,SRV-VL-1052,Backs Up,SRV-VL-1080,445,Legitimate,,Scheduled backup jobs
+REL-VL-113,SRV-VL-1052,Backs Up,SRV-VL-1030,445,Legitimate,,Nightly DB dump backup — explains why NAS/backup compromise exposes EHR data
+REL-VL-114,SRV-VL-1052,Backs Up,SRV-VL-1032,445,Legitimate,,Nightly DB dump backup
+REL-VL-115,CLD-VL-5001,Grants Session To,CLD-VL-5002,HTTPS/Azure API,Excessive (QID 300201),300201,Leaked settings backup file in container contains SAS token/SP credentials
+REL-VL-116,CLD-VL-5002,Has Access To,CLD-VL-5003,Azure API / 1433,Excessive (QID 300214),300214,Subscription Owner role grants access to all Azure resources

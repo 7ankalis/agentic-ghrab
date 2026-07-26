@@ -1,0 +1,16 @@
+rule_id,src_zone,dst_zone,port,status,enabling_qid,notes
+RULE-VL-001,NET-VL-INET,NET-VL-0020,"443, 80, 25",Intended,,"Public patient portal, clinic VPN, telehealth gateway"
+RULE-VL-002,NET-VL-0020,NET-VL-0021,tcp/7002 (LB backend only),Intended,,As-designed rule; superseded in practice by RULE-VL-003
+RULE-VL-003,NET-VL-0020,NET-VL-0021,ANY/ANY,Excessive,200901,As-configured firewall rule; QID 200901 — should be scoped to RULE-VL-002 only
+RULE-VL-004,NET-VL-0021,NET-VL-0030,tcp/1433,Intended,,"App tier to DB tier, standard app connectivity"
+RULE-VL-005,NET-VL-0010,NET-VL-0040,ANY (Kerberos/LDAP/SMB),Excessive,200999,Flat trust; QID 200999 — no tiering/PAM boundary enforced
+RULE-VL-006,NET-VL-0010,NET-VL-0050,N/A,Should-Not-Exist,,Management plane must only be reached via designated jump path
+RULE-VL-007,NET-VL-0020,NET-VL-0050,ANY (VPN split-tunnel),Excessive,200955,QID 200955 — clinic VPN client policy routes into management VLAN
+RULE-VL-008,NET-VL-0070,NET-VL-0010,802.1Q (all VLANs),Excessive,110001,"QID 110001 — guest trunk misconfigured, should be access-mode only"
+RULE-VL-009,NET-VL-0060,NET-VL-0010,"udp/500,4500 tcp/443",Intended,,"Site-to-site VPN, clinic to AD authentication only"
+RULE-VL-010,NET-VL-0050,NET-VL-0080,"tcp/9392, 445",Intended,,Backup jobs
+RULE-VL-011,NET-VL-0010,NET-VL-0030,N/A,Should-Not-Exist,,Workstations must never reach DB tier directly
+RULE-VL-012,NET-VL-0021,NET-VL-0040,N/A,Should-Not-Exist,,App tier and Clinical/Biomed zone are separate trust tiers
+RULE-VL-013,NET-VL-INET,NET-VL-0090,tcp/443,Excessive,300201,QID 300201 — Blob container public read enabled
+RULE-VL-014,NET-VL-INET,NET-VL-0090,tcp/1433,Excessive,300228,QID 300228 — Azure SQL firewall rule allows all IPs
+RULE-VL-015,NET-VL-0070,NET-VL-0040,N/A,Should-Not-Exist,,No path exists or has ever existed from Guest/Patient WiFi directly to the Clinical zone

@@ -1,0 +1,1388 @@
+{
+  "dataset": "acmebank",
+  "counts": {
+    "paths": 13,
+    "assets": 34,
+    "graph_edges": 215,
+    "cross_zone_hops": 116
+  },
+  "crown_jewels": [
+    "APP-PAY01",
+    "CORE-SW01",
+    "DB-PAY01",
+    "DC01",
+    "PAY-CORE01",
+    "SETTLEMENT01",
+    "SWIFT-GW01",
+    "acmebank-finance-rds"
+  ],
+  "paths": [
+    {
+      "path_id": "DISC-01",
+      "entry": "GUEST-AP-SW01",
+      "target": "SETTLEMENT01",
+      "hosts": [
+        "GUEST-AP-SW01",
+        "DC01",
+        "SETTLEMENT01"
+      ],
+      "enabler_qids": [
+        91001,
+        105001,
+        150100,
+        200512
+      ],
+      "score": 88.6
+    },
+    {
+      "path_id": "DISC-02",
+      "entry": "GUEST-AP-SW01",
+      "target": "SWIFT-GW01",
+      "hosts": [
+        "GUEST-AP-SW01",
+        "DC01",
+        "SWIFT-GW01"
+      ],
+      "enabler_qids": [
+        91001,
+        105001,
+        200512,
+        200533
+      ],
+      "score": 88.6
+    },
+    {
+      "path_id": "DISC-03",
+      "entry": "GUEST-AP-SW01",
+      "target": "CORE-SW01",
+      "hosts": [
+        "GUEST-AP-SW01",
+        "DC01",
+        "CORE-SW01"
+      ],
+      "enabler_qids": [
+        91001,
+        105001,
+        200512
+      ],
+      "score": 88.6
+    },
+    {
+      "path_id": "DISC-04",
+      "entry": "MAIL-RELAY01",
+      "target": "APP-PAY01",
+      "hosts": [
+        "MAIL-RELAY01",
+        "APP-PAY01"
+      ],
+      "enabler_qids": [
+        38702,
+        90344,
+        200114
+      ],
+      "score": 83.15
+    },
+    {
+      "path_id": "DISC-05",
+      "entry": "acmebank-finance-rds",
+      "target": "acmebank-finance-rds",
+      "hosts": [
+        "acmebank-finance-rds"
+      ],
+      "enabler_qids": [
+        300067
+      ],
+      "score": 81.67
+    },
+    {
+      "path_id": "DISC-06",
+      "entry": "acmebank-public-assets",
+      "target": "acmebank-finance-rds",
+      "hosts": [
+        "acmebank-public-assets",
+        "acmebank-finance-rds"
+      ],
+      "enabler_qids": [
+        300011,
+        300067
+      ],
+      "score": 81.67
+    },
+    {
+      "path_id": "DISC-07",
+      "entry": "WEB-PORTAL01",
+      "target": "DB-PAY01",
+      "hosts": [
+        "WEB-PORTAL01",
+        "APP-PAY01",
+        "DB-PAY01"
+      ],
+      "enabler_qids": [
+        38701,
+        90344,
+        150233,
+        200114,
+        200622
+      ],
+      "score": 81.0
+    },
+    {
+      "path_id": "DISC-08",
+      "entry": "MAIL-RELAY01",
+      "target": "PAY-CORE01",
+      "hosts": [
+        "MAIL-RELAY01",
+        "JUMP01",
+        "PAY-CORE01"
+      ],
+      "enabler_qids": [
+        38702,
+        90211,
+        150101,
+        200401
+      ],
+      "score": 80.15
+    },
+    {
+      "path_id": "DISC-09",
+      "entry": "MAIL-RELAY01",
+      "target": "DB-PAY01",
+      "hosts": [
+        "MAIL-RELAY01",
+        "BACKUP-MGR01",
+        "DB-PAY01"
+      ],
+      "enabler_qids": [
+        38702,
+        200401,
+        200622
+      ],
+      "score": 79.25
+    },
+    {
+      "path_id": "DISC-10",
+      "entry": "GUEST-AP-SW01",
+      "target": "DC01",
+      "hosts": [
+        "GUEST-AP-SW01",
+        "DC01"
+      ],
+      "enabler_qids": [
+        91001,
+        105001
+      ],
+      "score": 79.1
+    },
+    {
+      "path_id": "DISC-11",
+      "entry": "WEB-PORTAL01",
+      "target": "APP-PAY01",
+      "hosts": [
+        "WEB-PORTAL01",
+        "APP-PAY01"
+      ],
+      "enabler_qids": [
+        38701,
+        90344,
+        200114
+      ],
+      "score": 76.62
+    },
+    {
+      "path_id": "DISC-12",
+      "entry": "WEB-PORTAL01",
+      "target": "DC01",
+      "hosts": [
+        "WEB-PORTAL01",
+        "JUMP01",
+        "DC01"
+      ],
+      "enabler_qids": [
+        38701,
+        90211,
+        91001,
+        200401
+      ],
+      "score": 76.1
+    },
+    {
+      "path_id": "DISC-13",
+      "entry": "WEB-PORTAL01",
+      "target": "PAY-CORE01",
+      "hosts": [
+        "WEB-PORTAL01",
+        "JUMP01",
+        "PAY-CORE01"
+      ],
+      "enabler_qids": [
+        38701,
+        90211,
+        150101,
+        200401
+      ],
+      "score": 73.72
+    }
+  ],
+  "cross_zone_hops": [
+    {
+      "src": "APP-EBANK01",
+      "dst": "DB-EBANK01",
+      "src_vlan": "21",
+      "dst_vlan": "30",
+      "kind": "lateral",
+      "qid": 200338,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-HR01",
+      "dst": "DB-HR01",
+      "src_vlan": "21",
+      "dst_vlan": "30",
+      "kind": "lateral",
+      "qid": null,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "21",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "21",
+      "dst_vlan": "80",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "BRANCH-WKS01",
+      "src_vlan": "21",
+      "dst_vlan": "60",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "DB-PAY01",
+      "src_vlan": "21",
+      "dst_vlan": "30",
+      "kind": "credential",
+      "qid": 150233,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "DC01",
+      "src_vlan": "21",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "21",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "FILESRV01",
+      "src_vlan": "21",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "JUMP01",
+      "src_vlan": "21",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "ORPHAN-DECOM01",
+      "src_vlan": "21",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "21",
+      "dst_vlan": "40",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "WKS-FIN01",
+      "src_vlan": "21",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "WKS-HR01",
+      "src_vlan": "21",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "APP-PAY01",
+      "dst": "WSUS01",
+      "src_vlan": "21",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90344,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "BACKUP-MGR01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "50",
+      "dst_vlan": "80",
+      "kind": "lateral",
+      "qid": null,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "BACKUP-MGR01",
+      "dst": "DB-PAY01",
+      "src_vlan": "50",
+      "dst_vlan": "30",
+      "kind": "lateral",
+      "qid": null,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "BACKUP-MGR01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "50",
+      "dst_vlan": "90",
+      "kind": "lateral",
+      "qid": null,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "BACKUP-MGR01",
+      "dst": "NAS01",
+      "src_vlan": "50",
+      "dst_vlan": "80",
+      "kind": "lateral",
+      "qid": null,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "10",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "10",
+      "dst_vlan": "80",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "BRANCH-WKS01",
+      "src_vlan": "10",
+      "dst_vlan": "60",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "JUMP01",
+      "src_vlan": "10",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "ORPHAN-DECOM01",
+      "src_vlan": "10",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "CORE-SW01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-EBANK01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-EBANK01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-EBANK01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-HR01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-HR01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-HR01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-PAY01",
+      "dst": "APP-PAY01",
+      "src_vlan": "30",
+      "dst_vlan": "21",
+      "kind": "credential",
+      "qid": 150233,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-PAY01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-PAY01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DB-PAY01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "30",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200622,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "10",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "10",
+      "dst_vlan": "80",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "BRANCH-WKS01",
+      "src_vlan": "10",
+      "dst_vlan": "60",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "JUMP01",
+      "src_vlan": "10",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "ORPHAN-DECOM01",
+      "src_vlan": "10",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 91001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "DC01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "FILESRV01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "FILESRV01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "FILESRV01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "CORE-SW01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "DC01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "FILESRV01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "WKS-FIN01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "WKS-HR01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "GUEST-AP-SW01",
+      "dst": "WSUS01",
+      "src_vlan": "70",
+      "dst_vlan": "10",
+      "kind": "segmentation",
+      "qid": 105001,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "50",
+      "dst_vlan": "80",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "BRANCH-WKS01",
+      "src_vlan": "50",
+      "dst_vlan": "60",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "DC01",
+      "src_vlan": "50",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "50",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "FILESRV01",
+      "src_vlan": "50",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "ORPHAN-DECOM01",
+      "src_vlan": "50",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "50",
+      "dst_vlan": "40",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "WKS-FIN01",
+      "src_vlan": "50",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "WKS-HR01",
+      "src_vlan": "50",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "JUMP01",
+      "dst": "WSUS01",
+      "src_vlan": "50",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 90211,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "APP-EBANK01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "APP-HR01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "APP-PAY01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "JUMP01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "LB01",
+      "dst": "VCENTER01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "APP-EBANK01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "APP-HR01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "APP-PAY01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "JUMP01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "MAIL-RELAY01",
+      "dst": "VCENTER01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "APP-EBANK01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "APP-HR01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "APP-PAY01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "JUMP01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "PERIM-FW01",
+      "dst": "VCENTER01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "40",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "BACKUP-SRV01",
+      "src_vlan": "40",
+      "dst_vlan": "80",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "BRANCH-WKS01",
+      "src_vlan": "40",
+      "dst_vlan": "60",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "DC01",
+      "src_vlan": "40",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "DR-PAY-CORE01",
+      "src_vlan": "40",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "FILESRV01",
+      "src_vlan": "40",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "JUMP01",
+      "src_vlan": "40",
+      "dst_vlan": "50",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "ORPHAN-DECOM01",
+      "src_vlan": "40",
+      "dst_vlan": "90",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "WKS-FIN01",
+      "src_vlan": "40",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "WKS-HR01",
+      "src_vlan": "40",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "SWIFT-GW01",
+      "dst": "WSUS01",
+      "src_vlan": "40",
+      "dst_vlan": "10",
+      "kind": "domain",
+      "qid": 200533,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "APP-EBANK01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "APP-HR01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "APP-PAY01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "JUMP01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "VPN-GW01",
+      "dst": "VCENTER01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "APP-EBANK01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "APP-HR01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "APP-PAY01",
+      "src_vlan": "20",
+      "dst_vlan": "21",
+      "kind": "segmentation",
+      "qid": 200114,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "BACKUP-MGR01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "JUMP01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WEB-PORTAL01",
+      "dst": "VCENTER01",
+      "src_vlan": "20",
+      "dst_vlan": "50",
+      "kind": "segmentation",
+      "qid": 200401,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-FIN01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-FIN01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-FIN01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-HR01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-HR01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WKS-HR01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WSUS01",
+      "dst": "PAY-CORE01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WSUS01",
+      "dst": "SETTLEMENT01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    },
+    {
+      "src": "WSUS01",
+      "dst": "SWIFT-GW01",
+      "src_vlan": "10",
+      "dst_vlan": "40",
+      "kind": "segmentation",
+      "qid": 200512,
+      "rule_id": null,
+      "rel_id": null
+    }
+  ]
+}

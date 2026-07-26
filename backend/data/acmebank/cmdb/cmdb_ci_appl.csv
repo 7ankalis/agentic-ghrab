@@ -1,0 +1,6 @@
+ci_id,name,runs_on,criticality,support_group,business_service
+APP-AB-4011,Acme Public Website (WordPress),SRV-AB-1011,Business-Important,GRP-AB-APP,BSVC-AB-01
+APP-AB-4020,Acme eBanking (Spring),SRV-AB-1020,Business-Important,GRP-AB-APP,BSVC-AB-01
+APP-AB-4022,Acme Payments Engine (Java),SRV-AB-1022,High,GRP-AB-APP,BSVC-AB-02
+APP-AB-4001,Active Directory Domain Services,SRV-AB-1001,Crown Jewel,GRP-AB-IT,BSVC-AB-04
+APP-AB-4051,VMware vCenter Server,SRV-AB-1051,High,GRP-AB-IT,BSVC-AB-04

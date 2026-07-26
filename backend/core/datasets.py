@@ -39,6 +39,11 @@ _BUILTIN_PROFILES: dict[str, dict[str, str]] = {
         "sector": "a healthcare provider",
         "frameworks": "HIPAA Security Rule, FDA Premarket/Postmarket Cybersecurity Guidance",
     },
+    "acmebank": {
+        "name": "AcmeBank Corp",
+        "sector": "a retail & commercial bank",
+        "frameworks": "PCI DSS, SWIFT CSP, EU DORA",
+    },
 }
 
 _GENERIC_PROFILE = {"sector": "an enterprise", "frameworks": "ISO 27001, NIST CSF"}
@@ -51,12 +56,15 @@ class Dataset:
     sector: str               # e.g. "a healthcare provider"
     frameworks: str           # e.g. "HIPAA Security Rule, ..."
     vuln_csv: Path
-    architecture_md: Path
+    architecture_md: Path | None      # legacy markdown CMDB; None for CSV-backed datasets
     findings: int             # row count of the CSV (header excluded)
+    cmdb_dir: Path | None = None      # relational CSV CMDB dir; None for markdown datasets
 
     @property
     def has_architecture(self) -> bool:
-        return self.architecture_md is not None
+        """True when the dataset has a CMDB to ground on at all — a markdown
+        architecture doc OR a relational CSV CMDB directory."""
+        return self.architecture_md is not None or self.cmdb_dir is not None
 
 
 def _count_rows(csv: Path) -> int:
@@ -90,12 +98,46 @@ def _derive_profile(key: str, arch_md: Path) -> dict[str, str]:
 
 def discover() -> list[Dataset]:
     """Every scannable enterprise in the data dir, sorted by key. Re-scans the
-    filesystem on every call so newly dropped-in files are picked up live."""
+    filesystem on every call so newly dropped-in files are picked up live.
+
+    Two dataset shapes are recognised:
+      * legacy flat markdown — `<key>_vulnerabilities.csv` + `<key>_architecture.md`
+        side by side in the data dir; and
+      * relational CSV CMDB — a `<key>/` subdirectory holding `vulnerabilities.csv`
+        + a `cmdb/` dir of `cmdb_ci_*.csv` (the ServiceNow export shape). This is
+        the accuracy-first format (docs/cmdb-accuracy-brief.md §3).
+    """
     out: list[Dataset] = []
+    seen: set[str] = set()
+
+    # Relational CSV CMDBs are scanned FIRST and win: when a dataset exists in both
+    # shapes (a `<key>/cmdb/` dir AND the legacy flat `<key>_architecture.md`), the
+    # structured CSV form is the source of truth — it drives Phase-3 rule-grounded
+    # reachability, the Should-Not-Exist veto, the Phase-4 structured tools, and
+    # /api/cmdb/validate. The flat markdown is kept on disk (never deleted — brief
+    # guardrail) as a human-readable rendering / fallback for any dataset that has
+    # no CSV dir yet.
+    for sub in sorted(p for p in DATA_DIR.iterdir() if p.is_dir()):
+        key = sub.name
+        vuln = sub / "vulnerabilities.csv"
+        cmdb_dir = sub / "cmdb"
+        if not vuln.exists() or not cmdb_dir.is_dir():
+            continue  # not a CSV-backed dataset
+        # A flat markdown rendering, if present, still supplies the org profile.
+        prof = _derive_profile(key, DATA_DIR / f"{key}{ARCH_SUFFIX}"
+                               if (DATA_DIR / f"{key}{ARCH_SUFFIX}").exists()
+                               else sub / "architecture.md")
+        out.append(Dataset(
+            key=key, name=prof["name"], sector=prof["sector"],
+            frameworks=prof["frameworks"], vuln_csv=vuln, architecture_md=None,
+            findings=_count_rows(vuln), cmdb_dir=cmdb_dir,
+        ))
+        seen.add(key)
+
     for csv in sorted(DATA_DIR.glob(f"*{VULN_SUFFIX}")):
         key = csv.name[: -len(VULN_SUFFIX)]
-        if not key:
-            continue
+        if not key or key in seen:
+            continue  # a CSV-backed dataset of the same key already took precedence
         arch = DATA_DIR / f"{key}{ARCH_SUFFIX}"
         if not arch.exists():
             continue  # not scannable without an architecture doc
@@ -105,7 +147,9 @@ def discover() -> list[Dataset]:
             frameworks=prof["frameworks"], vuln_csv=csv, architecture_md=arch,
             findings=_count_rows(csv),
         ))
-    return out
+        seen.add(key)
+
+    return sorted(out, key=lambda d: d.key)
 
 
 _lock = threading.Lock()

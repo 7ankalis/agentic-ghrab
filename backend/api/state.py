@@ -48,6 +48,8 @@ def _attach_ai(result: AnalysisResult, run) -> None:
         "detected_paths": result.discovery.get("ai_detected", []),
         "error": result.discovery.get("ai_detected_error"),
     }
+    # Per-run trace/accounting was likewise folded into the discovery blob on save.
+    result.run_trace = result.discovery.get("run_trace", {})
     result.correlation = run.correlation or {}
     result.compliance = run.compliance or {}
     result.executive_summary = run.executive_summary or ""

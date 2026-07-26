@@ -1,0 +1,10 @@
+rule_id,src_zone,dst_zone,port,status,enabling_qid,notes
+RULE-EL-001,NET-EL-INET,NET-EL-0020,"443, 80",Intended,,Public storefront + order API
+RULE-EL-002,NET-EL-0020,NET-EL-0010,tcp/8080 (helpdesk ticket sync only),Intended,,As-designed rule; superseded in practice by RULE-EL-003
+RULE-EL-003,NET-EL-0020,NET-EL-0010,ANY/ANY,Excessive,200114,As-configured firewall rule; QID 200114 — should be scoped to RULE-EL-002 only
+RULE-EL-004,NET-EL-0010,NET-EL-0020,tcp/443 (admin console),Intended,,IT/Network admin access to DMZ management interfaces
+RULE-EL-005,NET-EL-0010,NET-EL-0030,N/A,Should-Not-Exist,,Corporate LAN must never directly reach the PCI CDE
+RULE-EL-006,NET-EL-0020,NET-EL-0030,N/A,Should-Not-Exist,,DMZ never routes to the CDE — no rule has ever existed here
+RULE-EL-007,NET-EL-INET,NET-EL-0030,N/A,Should-Not-Exist,,No direct internet path to the CDE
+RULE-EL-008,NET-EL-0030,NET-EL-0010,N/A,Should-Not-Exist,,CDE is one-way isolated; it never initiates connections outward
+RULE-EL-009,NET-EL-0010,NET-EL-0030,tcp/445 (Veeam backup agent only),Excessive,200718,"QID 200718 — scoped to the backup agent port, but sourced from the general Corporate LAN backup manager rather than a dedicated, access-controlled backup network; the sole documented exception to CDE isolation"

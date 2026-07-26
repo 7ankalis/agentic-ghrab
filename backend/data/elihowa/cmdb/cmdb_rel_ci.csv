@@ -1,0 +1,13 @@
+rel_id,source_ci,rel_type,target_ci,port,flag,enabling_qid,justification
+REL-EL-101,SRV-EL-1010,Forwards To,SRV-EL-1011,443→443,Legitimate,,Reverse proxy for storefront
+REL-EL-102,SRV-EL-1011,Depends On,SRV-EL-1012,8443,Legitimate,,Storefront calls order API
+REL-EL-103,SRV-EL-1005,Backs Up,SRV-EL-1033,445,Legitimate connection / segmentation exception,,"Nightly config backup of the payment-zone admin jump host, per RULE-EL-009"
+REL-EL-104,SRV-EL-1005,Backs Up,SRV-EL-1002,445,Legitimate,,Scheduled backup job
+REL-EL-105,SRV-EL-1033,Manages,SRV-EL-1030,22,Legitimate,,Payment team jump host administers the payment switch
+REL-EL-106,SRV-EL-1033,Manages,SRV-EL-1031,1521,Legitimate,,Payment team jump host administers the card data store
+REL-EL-107,SRV-EL-1030,Depends On,SRV-EL-1031,1521,Legitimate,,Payment switch persists transaction/cardholder data
+REL-EL-108,SRV-EL-1030,Depends On,SRV-EL-1032,1500,Legitimate,,Key management / PIN block translation
+REL-EL-109,SRV-EL-1003,Authenticates To,SRV-EL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-EL-110,SRV-EL-1004,Authenticates To,SRV-EL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-EL-111,SRV-EL-1002,Authenticates To,SRV-EL-1001,Kerberos/LDAP,Legitimate,,Domain join
+REL-EL-112,CLD-EL-5001,Serves,APP-EL-3011,HTTPS,Legitimate,,Product image CDN origin

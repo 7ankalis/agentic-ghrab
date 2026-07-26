@@ -23,6 +23,7 @@ _lock = threading.Lock()
 _history: list[dict] = []
 _active: dict[int, dict] = {}  # call_id -> start event, authoritative + never trimmed
 _subscribers: list[queue.Queue] = []
+_max_started_id = 0            # high-water mark for run-scoped accounting (see marker())
 MAX_HISTORY = 300
 
 
@@ -46,8 +47,11 @@ class CallEvent:
 
 
 def _publish(ev: CallEvent) -> None:
+    global _max_started_id
     d = asdict(ev)
     with _lock:
+        if ev.event == "start":
+            _max_started_id = ev.id
         _history.append(d)
         if len(_history) > MAX_HISTORY:
             del _history[: len(_history) - MAX_HISTORY]
@@ -86,6 +90,53 @@ def finish(call_id: int, role: str, provider: str, model: str, ok: bool,
                         prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
                         cost_usd=cost_usd, error=error, detail=detail,
                         attempt=attempt, group_id=group_id))
+
+
+def marker() -> int:
+    """Opaque high-water mark of the calls seen so far. Pass it to
+    `summarize_since()` after a unit of work (e.g. one analysis run) to get real
+    token/cost/latency accounting for exactly the calls that happened in between —
+    the Phase-5 observability hook that replaces the loop's len/4 estimate."""
+    with _lock:
+        return _max_started_id
+
+
+def summarize_since(marker_id: int) -> dict:
+    """Aggregate every LLM call that FINISHED after `marker_id` into a compact,
+    JSON-serialisable accounting record: totals plus a per-role and per-provider
+    breakdown of calls / tokens / cost / latency / errors. Best-effort — token and
+    cost fields are None for providers litellm has no usage/pricing data for, and
+    are simply skipped. Bounded by MAX_HISTORY: a run firing more than that many
+    calls would under-count the earliest, which no real run approaches."""
+    with _lock:
+        events = [e for e in _history
+                  if e["id"] > marker_id and e["event"] in ("success", "error")]
+
+    def _blank() -> dict:
+        return {"calls": 0, "ok": 0, "errors": 0, "tokens": 0,
+                "prompt_tokens": 0, "completion_tokens": 0,
+                "cost_usd": 0.0, "latency_ms": 0.0}
+
+    total = _blank()
+    by_role: dict[str, dict] = {}
+    by_provider: dict[str, dict] = {}
+    for e in events:
+        for bucket in (total, by_role.setdefault(e["role"], _blank()),
+                       by_provider.setdefault(e["provider"], _blank())):
+            bucket["calls"] += 1
+            bucket["ok"] += 1 if e["event"] == "success" else 0
+            bucket["errors"] += 1 if e["event"] == "error" else 0
+            bucket["tokens"] += e.get("tokens") or 0
+            bucket["prompt_tokens"] += e.get("prompt_tokens") or 0
+            bucket["completion_tokens"] += e.get("completion_tokens") or 0
+            bucket["cost_usd"] += e.get("cost_usd") or 0.0
+            bucket["latency_ms"] += e.get("duration_ms") or 0.0
+    for bucket in [total, *by_role.values(), *by_provider.values()]:
+        bucket["cost_usd"] = round(bucket["cost_usd"], 6)
+        bucket["latency_ms"] = round(bucket["latency_ms"], 1)
+    total["by_role"] = by_role
+    total["by_provider"] = by_provider
+    return total
 
 
 def history() -> list[dict]:

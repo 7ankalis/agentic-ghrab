@@ -1,0 +1,18 @@
+rule_id,src_zone,dst_zone,port,status,enabling_qid,notes
+RULE-AB-001,NET-AB-INET,NET-AB-0020,"443,80,25",Intended,,"Public web, VPN, mail relay"
+RULE-AB-002,NET-AB-0020,NET-AB-0021,tcp/8443,Intended,,As-designed LB backend only
+RULE-AB-003,NET-AB-0020,NET-AB-0021,ANY/ANY,Excessive,200114,As-configured firewall rule too broad — should be scoped to RULE-AB-002
+RULE-AB-004,NET-AB-0021,NET-AB-0030,"tcp/1433,1521,5432",Intended,,App tier to DB tier
+RULE-AB-005,NET-AB-0010,NET-AB-0040,ANY,Excessive,200512,Flat trust; no PAM/tiering boundary into the CDE
+RULE-AB-006,NET-AB-0010,NET-AB-0050,N/A,Should-Not-Exist,,Management plane must only be reached via the jump host
+RULE-AB-007,NET-AB-0020,NET-AB-0050,ANY,Excessive,200401,VPN split-tunnel routes remote users into management VLAN
+RULE-AB-008,NET-AB-0070,NET-AB-0010,802.1Q,Excessive,105001,Guest trunk misconfigured — should be access-mode only
+RULE-AB-009,NET-AB-0060,NET-AB-0010,"udp/500,4500",Intended,,"Site-to-site VPN, branch to AD authentication"
+RULE-AB-010,NET-AB-0050,NET-AB-0080,"tcp/9392,445",Intended,,Backup jobs
+RULE-AB-011,NET-AB-0010,NET-AB-0030,N/A,Should-Not-Exist,,Workstations must never reach the DB tier directly
+RULE-AB-012,NET-AB-0021,NET-AB-0040,N/A,Should-Not-Exist,,App tier and CDE are separate trust tiers
+RULE-AB-013,NET-AB-INET,NET-AB-00C0,tcp/443,Excessive,300011,S3 bucket policy grants public read
+RULE-AB-014,NET-AB-INET,NET-AB-00C0,tcp/5432,Excessive,300067,RDS publicly-accessible flag enabled
+RULE-AB-015,NET-AB-0070,NET-AB-0040,N/A,Should-Not-Exist,,No path exists or ever existed from Guest WiFi to the CDE
+RULE-AB-016,NET-AB-0050,NET-AB-0090,tcp/445,Intended,,Backup/DR replication management
+RULE-AB-017,NET-AB-0040,NET-AB-0090,tcp/445,Intended,,Production to DR replication

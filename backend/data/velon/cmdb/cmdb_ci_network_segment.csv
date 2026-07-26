@@ -1,0 +1,12 @@
+ci_id,name,vlan,cidr,trust_level,owner_group,business_purpose
+NET-VL-0010,VLAN 10 — Corporate LAN,10,10.20.10.0/24,Medium,GRP-VL-IT,
+NET-VL-0020,VLAN 20 — DMZ,20,10.20.20.0/24,Low (internet-facing),GRP-VL-NET,
+NET-VL-0021,VLAN 21 — App Tier,21,10.20.21.0/24,Medium,GRP-VL-APP,
+NET-VL-0030,VLAN 30 — DB Tier,30,10.20.30.0/24,High,GRP-VL-DBA,
+NET-VL-0040,VLAN 40 — Clinical/Biomed Critical Zone (HIPAA/FDA scope),40,10.20.40.0/24,Critical,GRP-VL-CE,
+NET-VL-0050,VLAN 50 — Management/OOB,50,10.20.50.0/24,Critical (should be),GRP-VL-IT,
+NET-VL-0060,VLAN 60 — Clinic/Branch VPN,60,10.20.60.0/24,Medium,GRP-VL-NET,
+NET-VL-0070,VLAN 70 — Guest/Patient WiFi,70,10.20.70.0/24,Untrusted,GRP-VL-NET,
+NET-VL-0080,VLAN 80 — Backup/Storage,80,10.20.80.0/24,High,GRP-VL-IT,
+NET-VL-0090,Cloud — Azure Subscription (velon-prod),Cloud,N/A,Mixed,GRP-VL-CLD,
+NET-VL-INET,Internet (untrusted),INET,0.0.0.0/0,None,N/A,

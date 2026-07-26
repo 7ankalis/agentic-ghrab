@@ -1,0 +1,4 @@
+ci_id,name,zone,ip,platform,criticality,support_group,business_service
+DBS-AB-3001,DB-EBANK01,NET-AB-0030,10.20.30.10,MSSQL,Business-Important,GRP-AB-DBA,BSVC-AB-01
+DBS-AB-3002,DB-PAY01,NET-AB-0030,10.20.30.20,Oracle,High,GRP-AB-DBA,BSVC-AB-02
+DBS-AB-3003,DB-HR01,NET-AB-0030,10.20.30.30,PostgreSQL,Standard,GRP-AB-DBA,BSVC-AB-04
